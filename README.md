@@ -22,7 +22,7 @@ Para o contexto técnico completo do projeto, consulte [CONTEXTO.md](./CONTEXTO.
 | ID | Descrição | Status |
 |----|-----------|--------|
 | A0 | Antena nativa do módulo ESP32 (integrada PCB) | Referência baseline |
-| A1 | Externa cilíndrica com cabo | Descartada — ganho insuficiente in-case |
+| A1 | Externa cilíndrica com cabo | Descartada — volume físico excessivo e dificuldade de integração mecânica |
 | A2 | Externa flexível longa | Descartada — sem vantagem mecânica |
 | A3 | Externa flexível média adesiva | Avaliada na Fase 1 |
 | A4 | Micro antena rígida SMD | **Finalista** — melhor robustez mecânica in-case |
@@ -102,4 +102,3 @@ estagio-terasite/
 - **Autor:** Guilherme Bertanha — Estagiário Eng. Mecatrônica
 - **Empresa:** Terasite Tecnologia
 - **Produto:** Frotall IoT Telemetry Gateway (FRITG01LTE)
-- **Firmware oficial (somente leitura):** gerenciado por Neilton Campos Morais
