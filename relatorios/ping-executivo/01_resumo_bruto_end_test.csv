@@ -1,0 +1,6 @@
+﻿arquivo,antena,unidade,teste,ensaio,total_bursts,ok_bursts,fail_bursts,fail_rate_pct,lat_avg_ms,lat_min_ms,lat_max_ms,channel,bssid,rssi_link_end
+Ping_A0_U1_T1.txt,A0,U1,T1,A0_U1_T1,100,100,0,0.0,10.0,2.0,50.0,11,XX,-46.0
+Ping_A4_U1_T1.txt,A4,U1,T1,A4_U1_T1,113,113,0,0.0,10.5,2.95,69.16,11,84:0B:BB:2A:35:70,-46.0
+Ping_A4_U1_T2.txt,A4,U1,T2,A4_U1_T2,100,100,0,0.0,10.0,2.0,50.0,11,XX,-46.0
+Ping_A5_U3_T1.txt,A5,U3,T1,A5_U3_T1,113,113,0,0.0,10.5,2.95,69.16,11,84:0B:BB:2A:35:70,-46.0
+Ping_A5_U3_T2.txt,A5,U3,T2,A5_U3_T2,100,100,0,0.0,10.0,2.0,50.0,11,XX,-46.0

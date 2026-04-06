@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Arduino IDE cache
+*.cache
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
+*~
+*.orig
+
+# Logs gerados por execução local (não os logs de ensaio)
+*.log
+
+# Grandes binários de dados que não devem ir ao repositório
+# (os PDFs de datasheets e PNGs de relatórios são mantidos intencionalmente)

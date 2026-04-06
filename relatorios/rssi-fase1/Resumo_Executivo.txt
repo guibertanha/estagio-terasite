@@ -1,0 +1,29 @@
+RESUMO EXECUTIVO - COMPARATIVO DE ANTENAS WIFI
+============================================================
+
+1. Ranking consolidado em CASE
+------------------------------------------------------------
+1. A5 | RSSI medio CASE = -43.93 dBm | Ensaios = 9 | Std entre ensaios = 6.67
+2. A4 | RSSI medio CASE = -45.90 dBm | Ensaios = 8 | Std entre ensaios = 5.51
+3. A0 | RSSI medio CASE = -56.66 dBm | Ensaios = 1 | Std entre ensaios = 0.00
+4. A1 | RSSI medio CASE = -58.09 dBm | Ensaios = 1 | Std entre ensaios = 0.00
+5. A3 | RSSI medio CASE = -60.13 dBm | Ensaios = 1 | Std entre ensaios = 0.00
+
+2. Perda BASE vs CASE
+------------------------------------------------------------
+A4 | BASE = -38.98 dBm | CASE = -45.90 dBm | Perda = 6.92 dB
+A0 | BASE = -44.06 dBm | CASE = -56.66 dBm | Perda = 12.60 dB
+A3 | BASE = -40.10 dBm | CASE = -60.13 dBm | Perda = 20.03 dB
+A1 | BASE = -34.72 dBm | CASE = -58.09 dBm | Perda = 23.37 dB
+
+3. Observacoes automaticas
+------------------------------------------------------------
+Melhor familia em CASE: A5 com RSSI medio de -43.93 dBm.
+Pior familia em CASE: A3 com RSSI medio de -60.13 dBm.
+A5 superou A4 em CASE por 1.97 dB na media consolidada.
+
+4. Ensaios carregados
+------------------------------------------------------------
+Total de ensaios analisados: 31
+Total de familias de antena: 5
+Fases presentes: Fase 1, Fase 2

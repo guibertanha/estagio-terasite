@@ -1,0 +1,2 @@
+test_id,data_hora,antena,posicao,lte,distancia_m,canal_wifi,largura_mhz,orientacao,rssi_medio_dbm,rssi_std_db,disconnects_5min,throughput_down_mbps,throughput_up_mbps,observacoes,foto_path,log_path
+T001,,,,,,,,,,,,,,,,,

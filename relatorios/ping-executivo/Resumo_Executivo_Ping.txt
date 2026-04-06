@@ -1,0 +1,16 @@
+RELATÓRIO EXECUTIVO - TESTE COMPLEMENTAR DE PING
+============================================================
+
+Objetivo: comparar robustez lógica do enlace sob tráfego em rajadas,
+como complemento aos testes de RSSI in-case e à análise visual do SA6.
+
+RESULTADO CONSOLIDADO POR ANTENA
+------------------------------------------------------------
+1. A0 | Ensaios=1 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=10.00 ms (std 0.00) | RSSI_LINK médio=-47.78 dBm (std 0.00)
+2. A4 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=10.25 ms (std 0.35) | RSSI_LINK médio=-43.96 dBm (std 2.59)
+3. A5 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=10.25 ms (std 0.35) | RSSI_LINK médio=-46.45 dBm (std 4.59)
+
+CONCLUSÃO
+------------------------------------------------------------
+A família líder neste ensaio complementar foi A0, com menor combinação de falha e latência, e RSSI do link médio de -47.78 dBm.
+Esse resultado deve ser cruzado com os ensaios principais de RSSI in-case.

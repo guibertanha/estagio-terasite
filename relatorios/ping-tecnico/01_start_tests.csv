@@ -1,0 +1,5 @@
+﻿arquivo,basename,antena,unidade,teste,ensaio,target_ip,ssid,channel_start,bssid_start,rssi_link_start
+Ping_A4_U1_T1.txt,Ping_A4_U1_T1,A4,U1,T1,A4_U1_T1,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-51.0
+Ping_A4_U1_T2.txt,Ping_A4_U1_T2,A4,U1,T2,A4_U1_T2,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-48.0
+Ping_A5_U3_T1.txt,Ping_A5_U3_T1,A5,U3,T1,A5_U3_T1,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-51.0
+Ping_A5_U3_T2.txt,Ping_A5_U3_T2,A5,U3,T2,A5_U3_T2,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-46.0

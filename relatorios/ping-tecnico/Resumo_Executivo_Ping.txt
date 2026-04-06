@@ -1,0 +1,35 @@
+RELATÓRIO COMPLEMENTAR - ENSAIO DE PING / ESTRESSE TX
+======================================================================
+
+1. ESCOPO
+----------------------------------------------------------------------
+Este relatório resume os ensaios de tráfego por ping em rajadas.
+O objetivo é avaliar estabilidade lógica do enlace sob estresse,
+como complemento aos testes de RSSI e à observação visual no SA6.
+
+2. OBSERVAÇÃO METODOLÓGICA
+----------------------------------------------------------------------
+Latência e falha de bursts são métricas complementares. Elas não
+substituem a medição RF física, mas ajudam a validar robustez do
+link. O campo RSSI_LINK representa o RSSI do AP visto pelo ESP32,
+e não uma medição reportada pelo gateway.
+
+3. RANKING CONSOLIDADO POR FAMÍLIA
+----------------------------------------------------------------------
+1. A4 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=8.05 ms (std 2.15) | RSSI link médio=-43.96 dBm (std 2.59)
+2. A5 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=8.43 ms (std 0.85) | RSSI link médio=-46.45 dBm (std 4.59)
+
+4. RESUMO POR UNIDADE
+----------------------------------------------------------------------
+A4_U1 | Ensaios=2 | Falha média=0.00% (std 0.00) | Latência média=8.05 ms (std 2.15) | RSSI link médio=-43.96 dBm (std 2.59)
+A5_U3 | Ensaios=2 | Falha média=0.00% (std 0.00) | Latência média=8.43 ms (std 0.85) | RSSI link médio=-46.45 dBm (std 4.59)
+
+5. ALERTAS DE CONSISTÊNCIA
+----------------------------------------------------------------------
+Todos os ensaios mantiveram consistência de canal e BSSID.
+
+6. VEREDITO DE ENGENHARIA
+----------------------------------------------------------------------
+A família líder neste ensaio complementar foi A4, com taxa média de falha de 0.00%, latência média de 8.05 ms e RSSI_LINK médio de -43.96 dBm.
+A decisão final deve cruzar esse resultado com os ensaios de RSSI
+in-case e com a observação visual do envelope de RF no SA6.
