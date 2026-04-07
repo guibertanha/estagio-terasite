@@ -1,0 +1,6 @@
+﻿arquivo,basename,antena,unidade,teste,ensaio,target_ip,ssid,channel_start,bssid_start,rssi_link_start,total_bursts,ok_bursts,fail_bursts,fail_rate_pct_log,lat_avg_ms_log,lat_min_ms_log,lat_max_ms_log,channel_end,bssid_end,rssi_link_end
+Ping_A0_U1_T1.txt,Ping_A0_U1_T1,A0,U1,T1,A0_U1_T1,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-55.0,100,100,0,0.0,10.0,2.0,50.0,11,XX,-46.0
+Ping_A4_U1_T1.txt,Ping_A4_U1_T1,A4,U1,T1,A4_U1_T1,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-51.0,113,113,0,0.0,10.5,2.95,69.16,11,84:0B:BB:2A:35:70,-46.0
+Ping_A4_U1_T2.txt,Ping_A4_U1_T2,A4,U1,T2,A4_U1_T2,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-48.0,100,100,0,0.0,10.0,2.0,50.0,11,XX,-46.0
+Ping_A5_U3_T1.txt,Ping_A5_U3_T1,A5,U3,T1,A5_U3_T1,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-51.0,113,113,0,0.0,10.5,2.95,69.16,11,84:0B:BB:2A:35:70,-46.0
+Ping_A5_U3_T2.txt,Ping_A5_U3_T2,A5,U3,T2,A5_U3_T2,192.168.15.1,AP 101 - 2.4GHz,11,84:0B:BB:2A:35:70,-46.0,100,100,0,0.0,10.0,2.0,50.0,11,XX,-46.0

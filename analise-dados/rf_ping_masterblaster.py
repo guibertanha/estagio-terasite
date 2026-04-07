@@ -229,7 +229,7 @@ def save_boxplot_latency_by_antenna(df_bursts):
     data = [df[df["antena"] == ant]["latencia_ms"].dropna().values for ant in antenna_order]
 
     plt.figure(figsize=(10, 6))
-    plt.boxplot(data, labels=antenna_order, showmeans=True)
+    plt.boxplot(data, tick_labels=antenna_order, showmeans=True)
     plt.ylabel("Latência (ms)")
     plt.title("Distribuição de latência por família de antena")
     plt.grid(axis="y", linestyle="--", alpha=0.4)
@@ -253,7 +253,7 @@ def save_boxplot_rssi_by_antenna(df_bursts):
     data = [df[df["antena"] == ant]["rssi_link_dbm"].dropna().values for ant in antenna_order]
 
     plt.figure(figsize=(10, 6))
-    plt.boxplot(data, labels=antenna_order, showmeans=True)
+    plt.boxplot(data, tick_labels=antenna_order, showmeans=True)
     plt.ylabel("RSSI do link visto pelo ESP (dBm)")
     plt.title("Distribuição do RSSI do link por família de antena")
     plt.grid(axis="y", linestyle="--", alpha=0.4)

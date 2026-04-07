@@ -3,6 +3,46 @@
 Scripts Python para análise dos dados de RF coletados nos ensaios de antenas
 WiFi do projeto FROTALL (firmware ESP32).
 
+## Como executar
+
+### 1. Criar e ativar o ambiente virtual
+
+```bash
+# Criar o ambiente (uma vez)
+python -m venv .venv
+
+# Ativar no Windows
+.venv\Scripts\activate
+
+# Ativar no Linux/macOS
+source .venv/bin/activate
+```
+
+### 2. Instalar dependências
+
+```bash
+pip install -r analise-dados/requirements.txt
+```
+
+### 3. Rodar os scripts
+
+Execute a partir da **raiz do repositório**:
+
+```bash
+# Análise completa de RSSI (Fases 1 e 2)
+python analise-dados/rf_masterblaster.py
+
+# Análise de ping / estresse TX
+python analise-dados/rf_ping_masterblaster.py
+
+# Comparativo Baseline vs In-Case
+python analise-dados/rf_attenuation_report.py
+```
+
+Os relatórios são gerados automaticamente em `relatorios/`.
+
+---
+
 ## Pré-requisitos
 
 ```bash

@@ -309,7 +309,7 @@ def save_plot_boxplot(df_raw):
     data = [case_raw[case_raw["antena"] == ant]["rssi"].values for ant in antenna_order]
 
     plt.figure(figsize=(12, 7))
-    plt.boxplot(data, labels=antenna_order, showmeans=True)
+    plt.boxplot(data, tick_labels=antenna_order, showmeans=True)
     plt.ylabel("RSSI (dBm)")
     plt.title("Distribuição de RSSI em CASE por família de antena")
     plt.grid(axis="y", linestyle="--", alpha=0.4)

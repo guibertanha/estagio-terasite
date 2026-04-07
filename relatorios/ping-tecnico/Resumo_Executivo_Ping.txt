@@ -4,7 +4,7 @@ RELATÓRIO COMPLEMENTAR - ENSAIO DE PING / ESTRESSE TX
 1. ESCOPO
 ----------------------------------------------------------------------
 Este relatório resume os ensaios de tráfego por ping em rajadas.
-O objetivo é avaliar estabilidade lógica do enlace sob estresse,
+Objetivo: avaliar estabilidade lógica do enlace sob estresse,
 como complemento aos testes de RSSI e à observação visual no SA6.
 
 2. OBSERVAÇÃO METODOLÓGICA
@@ -17,10 +17,12 @@ e não uma medição reportada pelo gateway.
 3. RANKING CONSOLIDADO POR FAMÍLIA
 ----------------------------------------------------------------------
 1. A4 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=8.05 ms (std 2.15) | RSSI link médio=-43.96 dBm (std 2.59)
-2. A5 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=8.43 ms (std 0.85) | RSSI link médio=-46.45 dBm (std 4.59)
+2. A0 | Ensaios=1 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=8.18 ms (std 0.00) | RSSI link médio=-47.78 dBm (std 0.00)
+3. A5 | Ensaios=2 | Unidades=1 | Falha média=0.00% (std 0.00) | Latência média=8.43 ms (std 0.85) | RSSI link médio=-46.45 dBm (std 4.59)
 
 4. RESUMO POR UNIDADE
 ----------------------------------------------------------------------
+A0_U1 | Ensaios=1 | Falha média=0.00% (std 0.00) | Latência média=8.18 ms (std 0.00) | RSSI link médio=-47.78 dBm (std 0.00)
 A4_U1 | Ensaios=2 | Falha média=0.00% (std 0.00) | Latência média=8.05 ms (std 2.15) | RSSI link médio=-43.96 dBm (std 2.59)
 A5_U3 | Ensaios=2 | Falha média=0.00% (std 0.00) | Latência média=8.43 ms (std 0.85) | RSSI link médio=-46.45 dBm (std 4.59)
 
