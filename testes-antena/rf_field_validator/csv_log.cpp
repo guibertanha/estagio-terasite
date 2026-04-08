@@ -170,8 +170,8 @@ static void _fill_ctx(CsvRow& r) {
 
 // ── Abrir run ─────────────────────────────────────────────────
 void csv_open_run() {
-    if (!LittleFS.begin(true)) return;
-    LittleFS.mkdir(FS_BASE_PATH);
+    // LittleFS já foi montado em setup() — não chamar begin() de novo
+    LittleFS.mkdir(FS_BASE_PATH);  // garante que /logs existe (no-op se já existe)
 
     _build_filename();
 
