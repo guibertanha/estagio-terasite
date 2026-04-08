@@ -17,8 +17,9 @@
 #define TCP_BUF_SIZE     1024             // bytes por write
 
 // ── Alvo ping (Perfil B) ─────────────────────────────────────
-// NULL = usa gateway Wi-Fi automaticamente
-#define PING_TARGET      NULL
+// Deixe comentado para usar o gateway Wi-Fi automaticamente.
+// Descomente e preencha para forçar um IP específico:
+// #define PING_TARGET  "192.168.x.x"
 
 // ── Hardware ─────────────────────────────────────────────────
 #define PIN_LED          2        // LED interno (active high)
