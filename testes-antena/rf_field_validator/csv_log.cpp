@@ -170,6 +170,13 @@ static void _fill_ctx(CsvRow& r) {
 
 // ── Abrir run ─────────────────────────────────────────────────
 void csv_open_run() {
+    // Descarta amostras residuais do run anterior para não contaminar
+    // o novo arquivo com linhas de run_id errado.
+    if (_ring) {
+        CsvRow discard;
+        while (xQueueReceive(_ring, &discard, 0) == pdTRUE) {}
+    }
+
     // LittleFS já foi montado em setup() — não chamar begin() de novo
     LittleFS.mkdir(FS_BASE_PATH);  // garante que /logs existe (no-op se já existe)
 
