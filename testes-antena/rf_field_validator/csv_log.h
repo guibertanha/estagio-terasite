@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "state_machine.h"
 
 // ============================================================
 //  csv_log.h — Estrutura CSV, ring buffer, flush protegido
