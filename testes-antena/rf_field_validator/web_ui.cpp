@@ -51,8 +51,11 @@ button:hover{background:#30363d}
 .bg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px}
 .li{display:flex;justify-content:space-between;align-items:center;padding:5px 2px;border-bottom:1px solid #21262d;font-size:.83em}
 .li:last-child{border:none}
+.la{display:flex;gap:10px;align-items:center}
 a{color:#58a6ff;text-decoration:none}
 a:hover{text-decoration:underline}
+a.del{color:#f85149}
+a.del:hover{text-decoration:underline}
 .msg{padding:5px 9px;border-radius:4px;margin-top:7px;font-size:.82em;display:none}
 .mo{background:#1a4731;color:#3fb950}
 .me{background:#3d1616;color:#f85149}
@@ -154,9 +157,13 @@ function loadLogs(){
     if(d.files&&d.files.length){
       d.files.forEach(function(f){
         var kb=(f.size/1024).toFixed(1);
+        var enc=encodeURIComponent(f.name);
         h+='<div class="li"><span>'+f.name+'<br>'
           +'<span style="color:#8b949e">'+kb+' KB</span></span>'
-          +'<a href="/download?f='+encodeURIComponent(f.name)+'">baixar</a></div>';
+          +'<div class="la">'
+          +'<a href="/download?f='+enc+'">baixar</a>'
+          +'<a class="del" href="#" onclick="delFile(\''+enc+'\');return false;">apagar</a>'
+          +'</div></div>';
       });
     } else {
       h='<em style="color:#8b949e;font-size:.83em">Nenhum log encontrado.</em>';
@@ -166,6 +173,14 @@ function loadLogs(){
     document.getElementById('ll').innerHTML=
       '<em style="color:#f85149">Erro ao listar logs.</em>';
   });
+}
+
+function delFile(enc){
+  if(!confirm('Apagar '+decodeURIComponent(enc)+'?')) return;
+  fetch('/delete?f='+enc).then(function(r){return r.json();}).then(function(d){
+    if(d.ok) loadLogs();
+    else alert('Erro: '+d.msg);
+  }).catch(function(){alert('Erro de rede');});
 }
 
 function updateStatus(){
@@ -381,6 +396,22 @@ static void _handle_logs() {
     _srv.send(200, "application/json", json);
 }
 
+// GET /delete?f=<nome> → apaga o arquivo
+static void _handle_delete() {
+    String fname = _safe_fname(_srv.arg("f"));
+    if (fname.isEmpty()) {
+        _json_reply(false, "Param f ausente");
+        return;
+    }
+    String path = String(FS_BASE_PATH) + "/" + fname;
+    if (!LittleFS.exists(path)) {
+        _json_reply(false, "Arquivo nao encontrado");
+        return;
+    }
+    LittleFS.remove(path);
+    _json_reply(true, ("Apagado: " + fname).c_str());
+}
+
 // GET /download?f=<nome> → stream do CSV
 static void _handle_download() {
     String fname = _safe_fname(_srv.arg("f"));
@@ -449,6 +480,7 @@ void web_ui_init() {
     _srv.on("/status",  HTTP_GET,  _handle_status);
     _srv.on("/logs",    HTTP_GET,  _handle_logs);
     _srv.on("/download",HTTP_GET,  _handle_download);
+    _srv.on("/delete",  HTTP_GET,  _handle_delete);
     _srv.on("/cmd",     HTTP_POST, _handle_cmd);
 
     _srv.begin();
