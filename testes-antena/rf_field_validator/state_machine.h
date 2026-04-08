@@ -1,5 +1,7 @@
 #pragma once
 #include <Arduino.h>
+#include <WiFi.h>
+#include "config.h"
 
 // ============================================================
 //  state_machine.h — Máquina de estados central

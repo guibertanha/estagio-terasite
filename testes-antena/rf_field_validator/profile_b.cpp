@@ -4,6 +4,7 @@
 #include "state_machine.h"
 #include "supervision.h"
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <ESPping.h>
 
 // ── Resolve alvo de ping ──────────────────────────────────────

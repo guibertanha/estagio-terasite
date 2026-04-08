@@ -6,7 +6,7 @@
 // ============================================================
 
 // ── Wi-Fi ────────────────────────────────────────────────────
-#define WIFI_SSID       "AP 101 - 2.4GHz"
+#define WIFI_SSID       "YOUR_WIFI_SSID"
 #define WIFI_PASS       "YOUR_WIFI_PASS"
 #define WIFI_TIMEOUT_MS  15000
 
@@ -38,6 +38,13 @@
 #define RING_BUF_SLOTS   64       // número de linhas CSV em RAM
 #define FLUSH_BATCH      16       // linhas por flush
 #define FLUSH_INTERVAL_MS 8000    // flush forçado a cada N ms
+
+// ── Interface Web + Botão físico ─────────────────────────────
+// Acesse http://<IP-do-ESP32>/ do celular (mesma rede Wi-Fi)
+#define WEB_UI_PORT      80
+// GPIO do botão físico: READY→START_WALK, RUNNING_*→STOP
+// Use 0 (botão BOOT do devkit) ou -1 para desabilitar
+#define PIN_BUTTON       0
 
 // ── Guardrails ───────────────────────────────────────────────
 #define MAX_RUNS_PER_FILE 99

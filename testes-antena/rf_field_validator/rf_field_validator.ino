@@ -27,6 +27,7 @@
 #include <WiFi.h>
 #include <LittleFS.h>
 #include <time.h>
+#include <esp_wifi.h>
 
 #include "config.h"
 #include "state_machine.h"
@@ -34,6 +35,7 @@
 #include "supervision.h"
 #include "profile_b.h"
 #include "profile_a.h"
+#include "web_ui.h"
 
 // ── Task handles ─────────────────────────────────────────────
 static TaskHandle_t _task_log    = nullptr;
@@ -47,12 +49,10 @@ static char  _cli_buf[CLI_BUF_SIZE];
 static uint8_t _cli_len = 0;
 
 // ── NTP ───────────────────────────────────────────────────────
-static bool _epoch_anchored = false;
-
+// gg_epoch_anchored é definido em web_ui.cpp (extern em web_ui.h)
 static void _try_ntp() {
     if (WiFi.status() != WL_CONNECTED) return;
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-    // aguarda sync (até 5 s)
     struct tm tm_info;
     uint32_t t0 = millis();
     while (!getLocalTime(&tm_info) && millis() - t0 < 5000)
@@ -60,7 +60,7 @@ static void _try_ntp() {
     if (getLocalTime(&tm_info)) {
         time_t now = mktime(&tm_info);
         csv_write_epoch_anchor((uint32_t)now);
-        _epoch_anchored = true;
+        gg_epoch_anchored = true;
         Serial.printf("[NTP] EPOCH_ANCHOR=%lu\n", (unsigned long)now);
     }
 }
@@ -132,7 +132,7 @@ static void _process_cli(const char* line) {
         const char* err = sm_cmd_start_walk(cold);
         if (err) Serial.printf("[ERR] %s\n", err);
         else {
-            if (!_epoch_anchored) _try_ntp();
+            if (!g_epoch_anchored) _try_ntp();
             digitalWrite(PIN_LED, HIGH);
             Serial.printf("[OK] START_WALK%s — arquivo: %s\n",
                           cold ? " (cold)" : "",
@@ -146,7 +146,7 @@ static void _process_cli(const char* line) {
         const char* err = sm_cmd_start_clock();
         if (err) Serial.printf("[ERR] %s\n", err);
         else {
-            if (!_epoch_anchored) _try_ntp();
+            if (!g_epoch_anchored) _try_ntp();
             digitalWrite(PIN_LED, HIGH);
             Serial.printf("[OK] START_CLOCK — arquivo: %s\n",
                           csv_current_filename().c_str());
@@ -161,7 +161,7 @@ static void _process_cli(const char* line) {
         const char* err = sm_cmd_start_burn(three);
         if (err) Serial.printf("[ERR] %s\n", err);
         else {
-            if (!_epoch_anchored) _try_ntp();
+            if (!g_epoch_anchored) _try_ntp();
             digitalWrite(PIN_LED, HIGH);
             Serial.printf("[OK] START_BURN%s — arquivo: %s\n",
                           three ? " 3x60" : "",
@@ -215,7 +215,7 @@ static void _process_cli(const char* line) {
         Serial.printf("Temperatura: %.1f C\n", sup_temp_c());
         Serial.printf("Flash livre: %lu KB\n", (unsigned long)csv_free_kb());
         Serial.printf("Ring buffer: %u linhas pendentes\n", csv_ring_count());
-        Serial.printf("EPOCH NTP  : %s\n", _epoch_anchored ? "ok" : "nao ancorado");
+        Serial.printf("EPOCH NTP  : %s\n", g_epoch_anchored ? "ok" : "nao ancorado");
         if (st != State::IDLE && st != State::READY)
             Serial.printf("Arquivo    : %s\n", csv_current_filename().c_str());
         return;
@@ -243,7 +243,7 @@ static void _process_cli(const char* line) {
         if (!ts_str) { Serial.println("[ERR] Uso: EPOCH <unix_timestamp>"); return; }
         uint32_t ts = (uint32_t)strtoul(ts_str, nullptr, 10);
         csv_write_epoch_anchor(ts);
-        _epoch_anchored = true;
+        gg_epoch_anchored = true;
         Serial.printf("[OK] EPOCH_ANCHOR=%lu (manual)\n", (unsigned long)ts);
         return;
     }
@@ -327,6 +327,13 @@ void setup() {
     sm_init();
     supervision_init();
 
+    // ── Interface Web (celular em campo) ─────────────────────
+    if (WiFi.status() == WL_CONNECTED) {
+        web_ui_init();
+    } else {
+        Serial.println("[Web] Sem WiFi — painel web indisponivel.");
+    }
+
     // ── Tasks FreeRTOS ────────────────────────────────────────
     // Supervisão: alta prioridade, leve, 1 Hz
     xTaskCreatePinnedToCore(supervision_task, "sup",  2048, nullptr, 5, &_task_sup,   1);
@@ -340,9 +347,10 @@ void setup() {
     Serial.println("[OK] Tasks iniciadas. IDLE — aguardando CONFIG.");
 }
 
-// ── loop() — CLI e heartbeat LED ─────────────────────────────
+// ── loop() — CLI, web server e heartbeat LED ─────────────────
 void loop() {
     _cli_poll();
+    web_ui_handle();   // atende requisições HTTP + botão físico
     _led_heartbeat();
-    delay(10);
+    delay(5);
 }
