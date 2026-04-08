@@ -1,0 +1,5 @@
+run_id,machine_id,machine_family,installation_point,antenna,phase,condition,sa6_used,sa6_photo_ref,mechanical_note,field_note
+WALK_A4_TETO_OFF_R01,MAQ001,escavadeira,teto_cabine,A4,F1,OFF,nao,,antena fixada com fita dupla-face,condicao de campo ok
+CLOCK_A4_TETO_OFF_R01,MAQ001,escavadeira,teto_cabine,A4,F2,OFF,sim,sa6/CLOCK_A4_TETO_OFF_R01.png,idem,marcadores N/S/L/O a 5m do gateway
+BURN_A4_TETO_ON_R01,MAQ001,escavadeira,teto_cabine,A4,F3A,ON,nao,,motor ligado parado,temperatura ambiente 32C
+BURN_A4_TETO_RUN_R01,MAQ001,escavadeira,teto_cabine,A4,F3B,RUN,nao,,motor ligado operando,ciclo de escavacao real
