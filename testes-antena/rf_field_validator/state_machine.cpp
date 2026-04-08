@@ -54,9 +54,10 @@ const char* sm_cmd_config(const char* antenna, const char* location, const char*
     if (_state == State::RUNNING_WALK  ||
         _state == State::RUNNING_CLOCK ||
         _state == State::RUNNING_BURN  ||
-        _state == State::RUNNING_BURN3 ||
-        _state == State::FLUSHING)
+        _state == State::RUNNING_BURN3)
         return "ERR_RUN_ACTIVE: pare o run antes de reconfigurar";
+    // FLUSHING é permitido: a task de log chama sm_cmd_config após
+    // csv_close_run() para retornar ao estado READY.
 
     if (!_valid_id(antenna,  3)) return "ERR_INVALID: antena deve ser alfanum, max 3 chars (ex: A4)";
     if (!_valid_id(location, 5)) return "ERR_INVALID: local deve ser alfanum, max 5 chars (ex: TETO)";
