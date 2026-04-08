@@ -49,7 +49,7 @@ static char  _cli_buf[CLI_BUF_SIZE];
 static uint8_t _cli_len = 0;
 
 // ── NTP ───────────────────────────────────────────────────────
-// gg_epoch_anchored é definido em web_ui.cpp (extern em web_ui.h)
+// g_epoch_anchored é definido em web_ui.cpp (extern em web_ui.h)
 static void _try_ntp() {
     if (WiFi.status() != WL_CONNECTED) return;
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
@@ -60,7 +60,7 @@ static void _try_ntp() {
     if (getLocalTime(&tm_info)) {
         time_t now = mktime(&tm_info);
         csv_write_epoch_anchor((uint32_t)now);
-        gg_epoch_anchored = true;
+        g_epoch_anchored = true;
         Serial.printf("[NTP] EPOCH_ANCHOR=%lu\n", (unsigned long)now);
     }
 }
@@ -243,7 +243,7 @@ static void _process_cli(const char* line) {
         if (!ts_str) { Serial.println("[ERR] Uso: EPOCH <unix_timestamp>"); return; }
         uint32_t ts = (uint32_t)strtoul(ts_str, nullptr, 10);
         csv_write_epoch_anchor(ts);
-        gg_epoch_anchored = true;
+        g_epoch_anchored = true;
         Serial.printf("[OK] EPOCH_ANCHOR=%lu (manual)\n", (unsigned long)ts);
         return;
     }

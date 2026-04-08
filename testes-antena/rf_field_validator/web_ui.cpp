@@ -66,6 +66,7 @@ a.del:hover{text-decoration:underline}
 
 <div class="card">
   <div id="sb" class="si">IDLE</div>
+  <div id="timer-row" class="sr" style="display:none"><span class="sl">Tempo</span><span class="sv" id="timer" style="font-size:1.1em;color:#3fb950;letter-spacing:.05em">00:00</span></div>
   <div class="sr"><span class="sl">Config</span><span class="sv" id="cfg">-/-/-</span></div>
   <div class="sr"><span class="sl">Arquivo</span><span class="sv" id="fname" style="font-size:.75em">-</span></div>
   <div class="sr"><span class="sl">RSSI</span><span class="sv" id="rssi">--- dBm</span></div>
@@ -119,6 +120,27 @@ a.del:hover{text-decoration:underline}
 <script>
 var SC={IDLE:'si',READY:'sr2',RUNNING_WALK:'sg',RUNNING_CLOCK:'sg',
         RUNNING_BURN:'sg',RUNNING_BURN3:'sg',FLUSHING:'sy'};
+
+var _timerBase=0, _timerRef=0, _timerInterval=null;
+function fmtTime(ms){
+  var s=Math.floor(ms/1000), m=Math.floor(s/60);
+  s=s%60;
+  return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
+function startTimer(elapsed_ms){
+  _timerBase=elapsed_ms; _timerRef=Date.now();
+  document.getElementById('timer-row').style.display='flex';
+  if(_timerInterval) clearInterval(_timerInterval);
+  _timerInterval=setInterval(function(){
+    document.getElementById('timer').textContent=
+      fmtTime(_timerBase+(Date.now()-_timerRef));
+  },1000);
+}
+function stopTimer(){
+  if(_timerInterval){clearInterval(_timerInterval);_timerInterval=null;}
+  document.getElementById('timer-row').style.display='none';
+  document.getElementById('timer').textContent='00:00';
+}
 
 function msg(id,ok,t){
   var e=document.getElementById(id);
@@ -183,6 +205,7 @@ function delFile(enc){
   }).catch(function(){alert('Erro de rede');});
 }
 
+var _wasRunning=false;
 function updateStatus(){
   fetch('/status').then(function(r){return r.json();}).then(function(d){
     var sb=document.getElementById('sb');
@@ -195,6 +218,10 @@ function updateStatus(){
     document.getElementById('vin').textContent=d.vin_mv+' mV';
     document.getElementById('fl').textContent=d.flash_kb+' KB';
     document.getElementById('ntp').textContent=d.ntp?'ancorado':'nao ancorado';
+    var running=d.elapsed_ms>0;
+    if(running){startTimer(d.elapsed_ms);}
+    else if(_wasRunning){stopTimer();}
+    _wasRunning=running;
   }).catch(function(){});
 }
 
@@ -278,7 +305,9 @@ static void _handle_status() {
     String fname = (st != State::IDLE && st != State::READY)
                    ? csv_current_filename() : "";
 
-    char buf[256];
+    uint32_t elapsed_ms = _is_running() ? millis() - ctx->start_ms : 0;
+
+    char buf[300];
     snprintf(buf, sizeof(buf),
         "{\"state\":\"%s\","
         "\"cfg\":\"%s/%s/%s\","
@@ -287,7 +316,8 @@ static void _handle_status() {
         "\"samples\":%lu,"
         "\"vin_mv\":%u,"
         "\"flash_kb\":%lu,"
-        "\"ntp\":%s}",
+        "\"ntp\":%s,"
+        "\"elapsed_ms\":%lu}",
         _state_name(),
         ctx->antenna, ctx->location, ctx->condition,
         fname.c_str(),
@@ -295,7 +325,8 @@ static void _handle_status() {
         (unsigned long)ctx->samples,
         sup_vin_mv(),
         (unsigned long)csv_free_kb(),
-        g_epoch_anchored ? "true" : "false"
+        g_epoch_anchored ? "true" : "false",
+        (unsigned long)elapsed_ms
     );
     _srv.send(200, "application/json", buf);
 }

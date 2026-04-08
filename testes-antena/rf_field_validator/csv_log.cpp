@@ -313,6 +313,24 @@ void csv_flush_all(uint32_t timeout_ms) {
 
 String csv_current_filename() { return String(_filename); }
 
+uint8_t csv_next_run_number(const char* ant, const char* loc,
+                            const char* cnd, RunMode mode) {
+    const char* ms;
+    switch (mode) {
+        case RunMode::WALK:  ms = "WALK";  break;
+        case RunMode::CLOCK: ms = "CLOCK"; break;
+        case RunMode::BURN:  ms = "BURN";  break;
+        default:             ms = "UNKN";  break;
+    }
+    for (uint8_t rn = 1; rn <= MAX_RUNS_PER_FILE; rn++) {
+        char path[64];
+        snprintf(path, sizeof(path), "%s/%s_%s_%s_%s_R%02u.csv",
+                 FS_BASE_PATH, ms, ant, loc, cnd, rn);
+        if (!LittleFS.exists(path)) return rn;
+    }
+    return 1;  // fallback: nunca deve chegar aqui
+}
+
 uint32_t csv_free_kb() {
     return LittleFS.totalBytes() > LittleFS.usedBytes()
         ? (LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024

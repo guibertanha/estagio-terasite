@@ -62,6 +62,11 @@ void     csv_flush_all(uint32_t timeout_ms = 5000);
 String   csv_current_filename();
 uint32_t csv_free_kb();
 
+// ── Próximo run number disponível (ignora arquivos apagados) ──
+// Varre o LittleFS e retorna o menor R que não tem arquivo ainda.
+uint8_t csv_next_run_number(const char* ant, const char* loc,
+                            const char* cnd, RunMode mode);
+
 // ── Helper para construir linha S ───────────────────────────
 CsvRow csv_make_sample(int8_t rssi, uint8_t ok, float lat_ms, uint32_t seq,
                        uint32_t tput_bps = 0, float plr = 0.0f);

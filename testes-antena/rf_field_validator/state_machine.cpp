@@ -17,14 +17,8 @@ static uint32_t _load_boot_count() {
     return bc;
 }
 
-static uint8_t _load_run_number(const char* key) {
-    _prefs.begin("rfval", false);
-    uint8_t rn = _prefs.getUChar(key, 0) + 1;
-    if (rn > MAX_RUNS_PER_FILE) rn = 1;
-    _prefs.putUChar(key, rn);
-    _prefs.end();
-    return rn;
-}
+// Run number agora determinado pelo filesystem (não NVS),
+// para que arquivos apagados liberem o número.
 
 // ── Helpers de validação ─────────────────────────────────────
 static bool _valid_id(const char* s, uint8_t maxlen) {
@@ -93,11 +87,8 @@ const char* sm_cmd_start_walk(bool cold) {
     _ctx.active_marker[0] = '\0';
     _ctx.start_ms   = millis();
 
-    // gera run_number único por cenário
-    char key[20];
-    snprintf(key, sizeof(key), "rn_%s_%s_%s",
-             _ctx.antenna, _ctx.location, _ctx.condition);
-    _ctx.run_number = _load_run_number(key);
+    _ctx.run_number = csv_next_run_number(
+        _ctx.antenna, _ctx.location, _ctx.condition, RunMode::WALK);
 
     csv_open_run();  // cria arquivo, grava header + E START_RUN
 
@@ -124,10 +115,8 @@ const char* sm_cmd_start_clock() {
     _ctx.active_marker[0] = '\0';
     _ctx.start_ms  = millis();
 
-    char key[20];
-    snprintf(key, sizeof(key), "rn_%s_%s_%s",
-             _ctx.antenna, _ctx.location, _ctx.condition);
-    _ctx.run_number = _load_run_number(key);
+    _ctx.run_number = csv_next_run_number(
+        _ctx.antenna, _ctx.location, _ctx.condition, RunMode::CLOCK);
 
     csv_open_run();
 
@@ -156,10 +145,8 @@ const char* sm_cmd_start_burn(bool three_blocks) {
     _ctx.active_marker[0] = '\0';
     _ctx.start_ms    = millis();
 
-    char key[20];
-    snprintf(key, sizeof(key), "rn_%s_%s_%s",
-             _ctx.antenna, _ctx.location, _ctx.condition);
-    _ctx.run_number = _load_run_number(key);
+    _ctx.run_number = csv_next_run_number(
+        _ctx.antenna, _ctx.location, _ctx.condition, RunMode::BURN);
 
     csv_open_run();
 
