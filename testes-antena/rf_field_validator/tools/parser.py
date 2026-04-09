@@ -9,7 +9,7 @@ Uso:
     Gera: <pasta>/report/report.html  e  <pasta>/report/summary.csv
 """
 
-import os, sys, re, csv, math, json, argparse
+import sys, re, csv, math, json, argparse, statistics
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -170,13 +170,19 @@ def aggregate_burn(rows: list) -> dict:
 
     result = {}
     for blk, d in sorted(blocks.items()):
+        rssi = d["rssi"]
+        tput = d["tput"]
         result[blk] = {
-            "rssi_median": _median(d["rssi"]),
-            "rssi_p10":    _pct(d["rssi"], 10),
-            "tput_median": _median(d["tput"]),
-            "tput_p10":    _pct(d["tput"], 10),
+            "rssi_median": _median(rssi),
+            "rssi_p10":    _pct(rssi, 10),
+            "rssi_p90":    _pct(rssi, 90),
+            "rssi_min":    min(rssi) if rssi else float("nan"),
+            "rssi_max":    max(rssi) if rssi else float("nan"),
+            "rssi_std":    statistics.stdev(rssi) if len(rssi) > 1 else 0.0,
+            "tput_median": _median(tput),
+            "tput_p10":    _pct(tput, 10),
             "plr_median":  _median(d["plr"]),
-            "n":           len(d["rssi"]),
+            "n":           len(rssi),
         }
     return result
 
@@ -250,14 +256,18 @@ def consolidate_burn(agg_list: list) -> dict:
     all_blocks = set(b for a in agg_list for b in a.keys())
     result = {}
     for blk in sorted(all_blocks):
-        rssi_vals = [a[blk]["rssi_p10"]    for a in agg_list if blk in a]
-        tput_vals = [a[blk]["tput_median"] for a in agg_list if blk in a]
-        plr_vals  = [a[blk]["plr_median"]  for a in agg_list if blk in a]
+        g = [a[blk] for a in agg_list if blk in a]
         result[blk] = {
-            "rssi_p10":    _median(rssi_vals),
-            "tput_median": _median(tput_vals),
-            "plr_median":  _median(plr_vals),
-            "n_runs":      len(rssi_vals),
+            "rssi_p10":    _median([x["rssi_p10"]    for x in g]),
+            "rssi_p90":    _median([x["rssi_p90"]    for x in g]),
+            "rssi_median": _median([x["rssi_median"] for x in g]),
+            "rssi_min":    _median([x["rssi_min"]    for x in g]),
+            "rssi_max":    _median([x["rssi_max"]    for x in g]),
+            "rssi_std":    _median([x["rssi_std"]    for x in g]),
+            "tput_median": _median([x["tput_median"] for x in g]),
+            "tput_p10":    _median([x["tput_p10"]    for x in g]),
+            "plr_median":  _median([x["plr_median"]  for x in g]),
+            "n_runs":      len(g),
         }
     return result
 
@@ -331,17 +341,29 @@ def run_pipeline(campaign_dir: Path, weights: dict):
     print(f"\nRF Field Validator — Parser N2.1")
     print(f"Campanha: {campaign_dir}\n{'─'*50}")
 
-    # Localiza CSVs
+    # Localiza CSVs — tenta pasta direta, logs/ ou recursivo em subpastas
     logs_dir = campaign_dir / "logs"
     if not logs_dir.exists():
         logs_dir = campaign_dir
+
     csv_files = sorted(f for f in logs_dir.glob("*.csv")
                        if FILENAME_RE.match(f.name))
+
+    # Sem CSVs diretos → varre subpastas (modo multi-campanha)
+    if not csv_files:
+        csv_files = sorted(f for f in logs_dir.rglob("*.csv")
+                           if FILENAME_RE.match(f.name)
+                           and "report" not in f.parts)
 
     if not csv_files:
         print(f"[ERRO] Nenhum CSV válido encontrado em {logs_dir}")
         sys.exit(1)
-    print(f"Arquivos encontrados: {len(csv_files)}\n")
+
+    n_camps = len(set(f.parent for f in csv_files))
+    if n_camps > 1:
+        print(f"Modo multi-campanha: {n_camps} pasta(s), {len(csv_files)} arquivo(s) total\n")
+    else:
+        print(f"Arquivos encontrados: {len(csv_files)}\n")
 
     # Ingestão e validação
     runs = []
@@ -395,19 +417,32 @@ def run_pipeline(campaign_dir: Path, weights: dict):
             tput_vals = [cons[b]["tput_median"] for b in cons]
             plr_vals  = [cons[b]["plr_median"]  for b in cons]
             if ant not in antenna_metrics:
-                antenna_metrics[ant] = {"rssi_p10": -127.0, "tput_median": 0.0,
-                                        "plr_median": 100.0, "ttr_median_s": 999.0}
+                antenna_metrics[ant] = {
+                    "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
+                    "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
+                    "tput_median": 0.0, "tput_p10": 0.0,
+                    "plr_median": 100.0, "ttr_median_s": 999.0,
+                }
             d = antenna_metrics[ant]
             if rssi_vals: d["rssi_p10"]    = max(d["rssi_p10"],    _median(rssi_vals))
             if tput_vals: d["tput_median"] = max(d["tput_median"], _median(tput_vals))
             if plr_vals:  d["plr_median"]  = min(d["plr_median"],  _median(plr_vals))
+            for field in ("rssi_p90","rssi_median","rssi_min","rssi_max","tput_p10"):
+                vals = [cons[b][field] for b in cons if field in cons[b]]
+                if vals: d[field] = _median(vals)
+            std_vals = [cons[b]["rssi_std"] for b in cons if "rssi_std" in cons[b]]
+            if std_vals: d["rssi_std"] = _mean(std_vals)
 
         elif mode == "WALK":
             cons = consolidate_walk(agg_list)
             consolidated[(ant, mode)] = cons
             if ant not in antenna_metrics:
-                antenna_metrics[ant] = {"rssi_p10": -127.0, "tput_median": 0.0,
-                                        "plr_median": 100.0, "ttr_median_s": 999.0}
+                antenna_metrics[ant] = {
+                    "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
+                    "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
+                    "tput_median": 0.0, "tput_p10": 0.0,
+                    "plr_median": 100.0, "ttr_median_s": 999.0,
+                }
             d = antenna_metrics[ant]
             if not math.isnan(cons.get("rssi_p10", float("nan"))):
                 d["rssi_p10"] = max(d["rssi_p10"], cons["rssi_p10"])
@@ -418,8 +453,12 @@ def run_pipeline(campaign_dir: Path, weights: dict):
             cons = consolidate_clock(agg_list)
             consolidated[(ant, mode)] = cons
             if ant not in antenna_metrics:
-                antenna_metrics[ant] = {"rssi_p10": -127.0, "tput_median": 0.0,
-                                        "plr_median": 100.0, "ttr_median_s": 999.0}
+                antenna_metrics[ant] = {
+                    "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
+                    "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
+                    "tput_median": 0.0, "tput_p10": 0.0,
+                    "plr_median": 100.0, "ttr_median_s": 999.0,
+                }
             d = antenna_metrics[ant]
             marker_rssi = [v["rssi_p10"] for v in cons.get("markers", {}).values()]
             if marker_rssi:
@@ -431,6 +470,7 @@ def run_pipeline(campaign_dir: Path, weights: dict):
     for ant, sc in sorted(scores.items(), key=lambda x: x[1], reverse=True):
         bar = "█" * int(sc / 5)
         print(f"  {ant:6s}: {sc:5.1f}  {bar}")
+
 
     # Exporta summary.csv
     report_dir = campaign_dir / "report"
@@ -468,10 +508,151 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
     sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
 
-    # ── Dados para os gráficos (JSON) ──────────────────────────
+    # ── Cores por antena ───────────────────────────────────────
     colors = ["#58a6ff","#3fb950","#f78166","#d29922","#a371f7",
               "#39d353","#ff7b72","#ffa657","#79c0ff","#56d364"]
     ant_colors = {a: colors[i % len(colors)] for i, a in enumerate(sorted_ants)}
+
+    # ── Radar chart (5 eixos normalizados 0-100) ───────────────
+    def _norm_radar(vals, higher_better=True):
+        clean = {k: float(v) for k, v in vals.items()
+                 if v is not None and not math.isnan(float(v))}
+        if not clean:
+            return {k: 50.0 for k in vals}
+        lo, hi = min(clean.values()), max(clean.values())
+        if hi == lo:
+            return {k: 100.0 for k in vals}
+        n = {k: (v - lo) / (hi - lo) for k, v in clean.items()}
+        if not higher_better:
+            n = {k: 1.0 - v for k, v in n.items()}
+        return {k: round(n.get(k, 0.5) * 100, 1) for k in vals}
+
+    rssi_r = _norm_radar({a: antenna_metrics[a]["rssi_p10"]    for a in sorted_ants})
+    tput_r = _norm_radar({a: antenna_metrics[a]["tput_median"] for a in sorted_ants})
+    conn_r = _norm_radar({a: antenna_metrics[a]["plr_median"]  for a in sorted_ants}, False)
+    stab_r = _norm_radar({a: antenna_metrics[a]["rssi_std"]    for a in sorted_ants}, False)
+    cons_r = _norm_radar({a: antenna_metrics[a]["tput_p10"] /
+                            max(antenna_metrics[a]["tput_median"], 1)
+                          for a in sorted_ants})
+    radar_json = json.dumps({
+        "labels": ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"],
+        "datasets": [
+            {"label": a,
+             "data":  [rssi_r[a], tput_r[a], conn_r[a], stab_r[a], cons_r[a]],
+             "color": ant_colors[a]}
+            for a in sorted_ants
+        ]
+    }, ensure_ascii=False)
+
+    # ── Heatmap matrix ─────────────────────────────────────────
+    def _cell(val, norm_0_1, fmt):
+        if math.isnan(float(val if val is not None else float("nan"))):
+            return '<td style="color:#484f58">—</td>'
+        if norm_0_1 >= 0.66:
+            bg, fg = "#1a4731", "#3fb950"
+        elif norm_0_1 >= 0.33:
+            bg, fg = "#2d2016", "#d29922"
+        else:
+            bg, fg = "#3d1616", "#f85149"
+        return f'<td style="background:{bg};color:{fg};font-weight:700">{fmt(val)}</td>'
+
+    heatmap_rows = ""
+    rssi_n  = _norm_radar({a: antenna_metrics[a]["rssi_p10"]    for a in sorted_ants})
+    tput_n  = _norm_radar({a: antenna_metrics[a]["tput_median"] for a in sorted_ants})
+    plr_n   = _norm_radar({a: antenna_metrics[a]["plr_median"]  for a in sorted_ants}, False)
+    stab_n  = _norm_radar({a: antenna_metrics[a]["rssi_std"]    for a in sorted_ants}, False)
+    score_n = _norm_radar({a: scores[a] for a in sorted_ants})
+    medals  = ["🥇", "🥈", "🥉"]
+    for rank, ant in enumerate(sorted_ants, 1):
+        m = antenna_metrics[ant]
+        medal = medals[rank - 1] if rank <= 3 else f"#{rank}"
+        heatmap_rows += (
+            f"<tr>"
+            f"<td style='font-weight:700;color:#e6edf3'>{medal} {ant}</td>"
+            + _cell(m["rssi_p10"],    rssi_n[ant]  / 100, lambda v: f"{v:.0f} dBm")
+            + _cell(m["tput_median"], tput_n[ant]  / 100, lambda v: f"{v/1e6:.2f} Mbps")
+            + _cell(m["plr_median"],  plr_n[ant]   / 100, lambda v: f"{v:.1f}%")
+            + _cell(m["rssi_std"],    stab_n[ant]  / 100, lambda v: f"σ {v:.1f} dB")
+            + _cell(scores[ant],      score_n[ant] / 100, lambda v: f"{v:.1f}")
+            + "</tr>"
+        )
+
+    # ── Distribuição RSSI (barras de range) ────────────────────
+    rssi_all = [antenna_metrics[a]["rssi_p10"] for a in sorted_ants
+                if not math.isnan(antenna_metrics[a]["rssi_p10"])]
+    r_lo = min(rssi_all) - 5 if rssi_all else -100
+    r_hi = max(rssi_all) + 5 if rssi_all else -40
+    r_span = max(r_hi - r_lo, 1)
+
+    def _pct_pos(v):
+        return round((v - r_lo) / r_span * 100, 1)
+
+    dist_rows = ""
+    for ant in sorted_ants:
+        m   = antenna_metrics[ant]
+        col = ant_colors[ant]
+        v_min = m.get("rssi_min",    m["rssi_p10"])
+        v_p10 = m["rssi_p10"]
+        v_med = m.get("rssi_median", m["rssi_p10"])
+        v_p90 = m.get("rssi_p90",    m["rssi_p10"])
+        v_max = m.get("rssi_max",    m["rssi_p10"])
+        left  = _pct_pos(v_min)
+        w_tot = _pct_pos(v_max) - left
+        p10_l = _pct_pos(v_p10) - left
+        p90_w = _pct_pos(v_p90) - _pct_pos(v_p10)
+        med_l = _pct_pos(v_med) - left
+        dist_rows += f"""
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">{ant}</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:{left}%;width:{w_tot}%;height:100%;
+                background:{col}22;border-radius:4px"></div>
+    <div style="position:absolute;left:{left+p10_l}%;width:{p90_w}%;height:100%;
+                background:{col}88"></div>
+    <div style="position:absolute;left:{left+med_l}%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">{v_med:.0f} dBm</span>
+</div>"""
+
+    # ── Banner do vencedor ─────────────────────────────────────
+    winner_html = ""
+    if sorted_ants:
+        w   = sorted_ants[0]
+        m   = antenna_metrics[w]
+        sc  = scores[w]
+        col = ant_colors[w]
+        runner = sorted_ants[1] if len(sorted_ants) > 1 else None
+        gap = f"+{sc - scores[runner]:.1f} pts vs {runner}" if runner else ""
+        winner_html = f"""
+<div style="background:linear-gradient(135deg,#1a4731 0%,#161b22 100%);
+            border:1px solid #238636;border-radius:10px;padding:20px 24px;
+            margin-bottom:16px;display:flex;align-items:center;gap:20px">
+  <div style="font-size:3em;line-height:1">🏆</div>
+  <div style="flex:1">
+    <div style="font-size:.72em;text-transform:uppercase;letter-spacing:.12em;
+                color:#3fb950;margin-bottom:2px">Melhor antena</div>
+    <div style="font-size:2.2em;font-weight:900;color:#f0f6fc;
+                line-height:1.1">{w}</div>
+    <div style="color:#3fb950;font-weight:700;margin-top:4px">
+      Score RF: {sc:.1f} / 100
+      <span style="color:#484f58;font-weight:400;font-size:.85em;
+                   margin-left:8px">{gap}</span>
+    </div>
+  </div>
+  <div style="text-align:right;line-height:2;font-size:.85em">
+    <div style="color:#8b949e">RSSI P10
+      <strong style="color:#e6edf3">{m['rssi_p10']:.0f} dBm</strong></div>
+    <div style="color:#8b949e">Throughput
+      <strong style="color:#e6edf3">{m['tput_median']/1e6:.2f} Mbps</strong></div>
+    <div style="color:#8b949e">PLR
+      <strong style="color:#e6edf3">{m['plr_median']:.1f}%</strong></div>
+    <div style="color:#8b949e">Estabilidade
+      <strong style="color:#e6edf3">σ {m['rssi_std']:.1f} dB</strong></div>
+  </div>
+</div>"""
 
     # RSSI e throughput por amostra (time series)
     series_data = {}
@@ -485,7 +666,6 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
         }
 
     # Métricas resumidas por antena
-    summary_labels = sorted_ants
     rssi_vals  = [_nan_to_none(antenna_metrics[a]["rssi_p10"])    for a in sorted_ants]
     tput_vals  = [_nan_to_none(antenna_metrics[a]["tput_median"]) for a in sorted_ants]
     plr_vals   = [_nan_to_none(antenna_metrics[a]["plr_median"])  for a in sorted_ants]
@@ -556,48 +736,91 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;padding:20px;max-width:1100px;margin:auto}}
+body{{background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;
+     padding:20px;max-width:1100px;margin:auto}}
 h1{{font-size:1.6em;font-weight:900;color:#f0f6fc;margin-bottom:4px}}
-h2{{font-size:.8em;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;
-   margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #21262d}}
+h2{{font-size:.75em;text-transform:uppercase;letter-spacing:.12em;color:#8b949e;
+    margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #21262d}}
 .grid2{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}}
 .grid3{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}}
 .card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}}
-.chart-card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:16px}}
+.chart-card{{background:#161b22;border:1px solid #30363d;border-radius:8px;
+             padding:16px;margin-bottom:16px}}
 table{{width:100%;border-collapse:collapse;font-size:13px}}
 th{{background:#161b22;color:#8b949e;font-size:10px;text-transform:uppercase;
-   letter-spacing:.06em;padding:7px 10px;text-align:left;border-bottom:1px solid #30363d}}
-td{{padding:7px 10px;border-bottom:1px solid #21262d;font-size:12px}}
+    letter-spacing:.06em;padding:8px 10px;text-align:left;
+    border-bottom:1px solid #30363d}}
+td{{padding:8px 10px;border-bottom:1px solid #21262d;font-size:12px}}
 tr:last-child td{{border-bottom:none}}
-.tag{{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700}}
-footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;padding-top:16px;
-        border-top:1px solid #21262d}}
+tr:hover td{{background:#1c2128}}
+footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
+        padding-top:16px;border-top:1px solid #21262d}}
 @media(max-width:700px){{.grid2,.grid3{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
 
 <div style="margin-bottom:24px">
-  <h1>Relatório RF de Campo</h1>
+  <h1>&#x1F4E1; Relatório RF de Campo</h1>
   <p style="color:#8b949e;font-size:13px;margin-top:4px">
     Campanha: <strong style="color:#c9d1d9">{campaign_name}</strong>
     &nbsp;·&nbsp; Gerado em {now}
-    &nbsp;·&nbsp; {len(runs)} runs · {len(sorted_ants)} antenas
+    &nbsp;·&nbsp; {len(runs)} runs &nbsp;·&nbsp; {len(sorted_ants)} antenas
   </p>
 </div>
 
-<h2>Ranking de Antenas — Score RF Composto</h2>
+{winner_html}
+
+<h2>Ranking — Score RF Composto</h2>
+<div class="grid2">
+  <div class="card">
+    {score_badges}
+    <p style="font-size:10px;color:#484f58;margin-top:8px">
+      Score = 30% PLR + 25% TTR + 25% RSSI P10 + 20% Throughput (min-max)
+    </p>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;align-items:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px;align-self:flex-start">
+      Perfil multidimensional</div>
+    <canvas id="chartRadar" style="max-height:280px"></canvas>
+  </div>
+</div>
+
+<h2>Tabela Comparativa</h2>
+<div class="card" style="padding:0;overflow:hidden">
+<table>
+  <tr>
+    <th>Antena</th>
+    <th>RSSI P10</th>
+    <th>Throughput</th>
+    <th>PLR</th>
+    <th>Estabilidade</th>
+    <th>Score</th>
+  </tr>
+  {heatmap_rows}
+</table>
+</div>
+
+<h2>Distribuição RSSI por Antena</h2>
 <div class="card">
-  {score_badges}
-  <p style="font-size:11px;color:#484f58;margin-top:8px">
-    Score = 30% PLR + 25% TTR + 25% RSSI P10 + 20% Throughput (normalizado min-max entre antenas)
-  </p>
+  <div style="display:flex;gap:20px;font-size:10px;color:#484f58;
+              margin-bottom:12px;align-items:center">
+    <span>&#9646; Range total</span>
+    <span style="opacity:.8">&#9646; P10 – P90</span>
+    <span style="background:#f0f6fc;width:3px;height:10px;display:inline-block"></span>
+    <span>Mediana</span>
+  </div>
+  {dist_rows}
+  <div style="display:flex;justify-content:space-between;
+              font-size:10px;color:#484f58;margin-top:4px">
+    <span>{r_lo:.0f} dBm</span><span>{r_hi:.0f} dBm</span>
+  </div>
 </div>
 
 <h2>Comparação de Métricas</h2>
 <div class="grid3">
   <div class="card" style="text-align:center">
-    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10</div>
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 (dBm)</div>
     <canvas id="chartRssi" height="220"></canvas>
   </div>
   <div class="card" style="text-align:center">
@@ -605,7 +828,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;padding-t
     <canvas id="chartTput" height="220"></canvas>
   </div>
   <div class="card" style="text-align:center">
-    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">PLR Médio</div>
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">PLR Médio (%)</div>
     <canvas id="chartPlr" height="220"></canvas>
   </div>
 </div>
@@ -621,6 +844,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;padding-t
 </div>
 
 <h2>Validação de Runs</h2>
+<div class="card" style="padding:0;overflow:hidden">
 <table>
   <tr>
     <th>Arquivo</th><th>Antena</th><th>Modo</th><th>Run</th>
@@ -628,6 +852,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;padding-t
   </tr>
   {run_rows}
 </table>
+</div>
 
 <footer>
   RF Field Validator N2.1 · Terasite Tecnologia · {now}
@@ -635,11 +860,42 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;padding-t
 
 <script>
 const D = {chart_json};
+const R = {radar_json};
 
 const FONT = {{color:'#8b949e',size:11}};
 const GRID = 'rgba(48,54,61,0.8)';
 Chart.defaults.color = '#8b949e';
 Chart.defaults.font.family = 'system-ui,sans-serif';
+
+// Radar chart
+new Chart(document.getElementById('chartRadar'), {{
+  type: 'radar',
+  data: {{
+    labels: R.labels,
+    datasets: R.datasets.map(d => ({{
+      label: d.label,
+      data: d.data,
+      borderColor: d.color,
+      backgroundColor: d.color + '22',
+      pointBackgroundColor: d.color,
+      pointRadius: 4,
+      borderWidth: 2,
+    }}))
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{ legend: {{ labels: {{ color:'#c9d1d9', font:{{size:11}} }} }} }},
+    scales: {{
+      r: {{
+        min: 0, max: 100,
+        ticks: {{ display: false }},
+        grid: {{ color: GRID }},
+        pointLabels: {{ color:'#8b949e', font:{{size:11}} }},
+        angleLines: {{ color: GRID }},
+      }}
+    }}
+  }}
+}});
 
 function barChart(id, labels, datasets, opts={{}}) {{
   return new Chart(document.getElementById(id), {{
