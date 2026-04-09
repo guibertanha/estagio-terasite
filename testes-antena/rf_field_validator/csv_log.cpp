@@ -63,7 +63,7 @@ static void _write_line(const CsvRow& r) {
     if (!_file_open) return;
     String line = _row_to_str(r);
     uint16_t crc = crc16((const uint8_t*)line.c_str(), line.length());
-    char crc_field[12];
+    char crc_field[14];
     snprintf(crc_field, sizeof(crc_field), ",crc16=%04X\n", crc);
     _file.print(line);
     _file.print(crc_field);

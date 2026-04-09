@@ -3,43 +3,35 @@
 parser.py — Pipeline offline de análise RF (spec N2.1)
 
 Uso:
-    python tools/parser.py <campanha_dir> [--weights plr=0.30,ttr=0.25,rssi=0.25,tput=0.20]
+    python tools/parser.py <pasta_com_csvs> [--weights plr=0.30,ttr=0.25,rssi=0.25,tput=0.20]
 
-Saída:
-    <campanha_dir>/report/report.html
-    <campanha_dir>/report/summary.csv
-
-Pipeline:
-    Ingestão → Validação → Split profile → Agregação → Consolidação → Score RF → Relatório
+    A pasta pode conter os CSVs diretamente ou numa subpasta logs/.
+    Gera: <pasta>/report/report.html  e  <pasta>/report/summary.csv
 """
 
-import os, sys, re, json, csv, math, argparse, warnings
+import os, sys, re, csv, math, json, argparse
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-# ── Dependências opcionais ────────────────────────────────────
-try:
-    import pandas as pd
-    import numpy as np
-    HAS_PANDAS = True
-except ImportError:
-    HAS_PANDAS = False
-    warnings.warn("pandas/numpy ausentes — usando modo básico (sem gráficos avançados)")
+# Força UTF-8 no stdout (necessário no Windows com terminal CP1252)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # ══════════════════════════════════════════════════════════════
 #  1. INGESTÃO
 # ══════════════════════════════════════════════════════════════
-LOG_COLS = [
+CSV_HEADER = [
     "timestamp_ms","type","profile","phase","antenna","location","condition","run_id",
     "rssi_dbm","ping_ok","ping_latency_ms","ping_seq",
     "throughput_bps","plr_window",
     "vin_mv","temp_c","link_state","boot_count","uptime_ms",
-    "marker","block","notes","crc16"
+    "marker","block","notes",
 ]
 
 FILENAME_RE = re.compile(
-    r"^(WALK|CLOCK|BURN)_([A-Za-z0-9]+)_([A-Za-z0-9]+)_([A-Za-z0-9]+)_R(\d{2})\.csv$"
+    r"^(WALK|CLOCK|BURN)_([A-Za-z0-9]+)_([A-Za-z0-9]+)_([A-Za-z0-9]+)_R(\d{2})\.csv$",
+    re.IGNORECASE
 )
 
 def _crc16(s: str) -> str:
@@ -52,219 +44,185 @@ def _crc16(s: str) -> str:
     return f"{crc:04X}"
 
 def ingest_file(path: Path) -> dict:
-    """
-    Lê um arquivo CSV do firmware e retorna dict com:
-      rows     : lista de dicts (uma por linha)
-      warnings : lista de strings
-      meta     : dict extraído do nome de arquivo
-    """
     result = {"path": str(path), "rows": [], "warnings": [], "meta": {}, "status": "VALID"}
+
     m = FILENAME_RE.match(path.name)
     if m:
         result["meta"] = {
-            "mode": m.group(1), "antenna": m.group(2),
-            "location": m.group(3), "condition": m.group(4),
-            "run_number": int(m.group(5))
+            "mode": m.group(1).upper(),
+            "antenna": m.group(2).upper(),
+            "location": m.group(3).upper(),
+            "condition": m.group(4).upper(),
+            "run_number": int(m.group(5)),
         }
     else:
-        result["warnings"].append(f"SUSPECT: nome de arquivo fora do padrão: {path.name}")
-        result["status"] = "SUSPECT"
+        result["warnings"].append(f"Nome fora do padrão: {path.name}")
 
+    crc_errors = 0
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
-            reader = csv.DictReader(f)
-            for i, row in enumerate(reader, start=2):
-                # Verifica CRC16 se presente
-                crc_field = row.get("crc16", "")
-                if crc_field:
-                    # reconstrói a linha sem o campo crc16
-                    line_without_crc = ",".join(
-                        str(row.get(c, "")) for c in LOG_COLS[:-1]
-                    )
-                    expected = _crc16(line_without_crc)
-                    if crc_field.strip().upper() != expected:
-                        result["warnings"].append(
-                            f"CRC_MISMATCH linha {i}: got {crc_field} expected {expected}"
-                        )
-                result["rows"].append(dict(row))
-    except Exception as e:
-        result["warnings"].append(f"READ_ERROR: {e}")
-        result["status"] = "INVALID"
+            raw = f.read()
+        # Corrige CSVs sem newline entre linhas (bug firmware: crc_field[12] truncava \n)
+        raw = re.sub(r"(crc16=[0-9A-Fa-f]{4})(?=\d)", r"\1\n", raw)
+        import io
+        reader = csv.DictReader(io.StringIO(raw))
+        for i, row in enumerate(reader, start=2):
+            # CRC está em row[None] (campo extra além do header)
+            extra = row.get(None) or []
+            if isinstance(extra, str):
+                extra = [extra]
+            crc_raw = extra[0].strip() if extra else ""
+            crc_val = crc_raw.replace("crc16=", "").replace("CRC16=", "").strip()
 
+            if crc_val:
+                line_body = ",".join(str(row.get(c, "") or "") for c in CSV_HEADER)
+                expected = _crc16(line_body)
+                if crc_val.upper() != expected:
+                    crc_errors += 1
+
+            result["rows"].append(dict(row))
+    except Exception as e:
+        result["warnings"].append(f"Erro de leitura: {e}")
+        result["status"] = "INVALID"
+        return result
+
+    if crc_errors:
+        result["warnings"].append(f"CRC inválido em {crc_errors} linha(s)")
     return result
 
 # ══════════════════════════════════════════════════════════════
 #  2. VALIDAÇÃO
 # ══════════════════════════════════════════════════════════════
-VIN_BROWNOUT_MV = 10500
-
 def validate_run(run: dict) -> dict:
-    """Valida um run e preenche run['status'] e run['validation']"""
     rows  = run["rows"]
     warns = run["warnings"]
-    val   = {"checks": []}
-    run["validation"] = val
 
-    def _check(name, ok, msg=""):
-        val["checks"].append({"name": name, "ok": ok, "msg": msg})
-        if not ok:
-            warns.append(f"{name}: {msg}")
+    notes  = [r.get("notes", "") or "" for r in rows]
+    boots  = [r.get("boot_count", "") for r in rows if r.get("boot_count", "")]
+    uptimes= [int(r["uptime_ms"]) for r in rows if r.get("uptime_ms", "").strip()]
 
-    types  = [r.get("type","")  for r in rows]
-    notes  = [r.get("notes","") for r in rows]
-    boots  = [r.get("boot_count","") for r in rows if r.get("boot_count","")]
-    uptimes= [int(r.get("uptime_ms",0) or 0) for r in rows if r.get("uptime_ms","")]
-    vins   = [int(r.get("vin_mv",0) or 0) for r in rows if r.get("vin_mv","") and r.get("vin_mv","") != "0"]
+    has_start = any("START_RUN" in n for n in notes)
+    has_end   = any(n in ("END_RUN", "ABORTED") for n in notes)
 
-    # START_RUN + END_RUN presentes
-    has_start = any(n == "START_RUN" for n in notes)
-    has_end   = any(n in ("END_RUN","ABORTED") for n in notes)
-    _check("START_RUN",  has_start, "evento START_RUN ausente")
-    _check("END_RUN",    has_end,   "evento END_RUN ausente → run INCOMPLETE")
-    if not has_end: run["status"] = "INCOMPLETE"
+    if not has_start:
+        warns.append("START_RUN ausente")
+    if not has_end:
+        warns.append("END_RUN ausente — run INCOMPLETO")
+        run["status"] = "INCOMPLETE"
 
-    # boot_count constante
     unique_boots = set(boots)
-    _check("BOOT_COUNT", len(unique_boots) <= 1,
-           f"boot_count variou: {unique_boots} → INVALID_REBOOT")
     if len(unique_boots) > 1:
+        warns.append(f"boot_count mudou ({unique_boots}) — REBOOT durante o run")
         run["status"] = "INVALID"
-        run["invalid_reason"] = "INVALID_REBOOT"
 
-    # uptime monotônico
     non_mono = any(uptimes[i] < uptimes[i-1] for i in range(1, len(uptimes)))
-    _check("UPTIME_MONO", not non_mono, "uptime_ms não monotônico")
+    if non_mono:
+        warns.append("uptime_ms não monotônico")
 
-    # brownout
-    brownout = any(0 < v < VIN_BROWNOUT_MV for v in vins)
-    if brownout:
-        warns.append("BROWNOUT_WARNING: vin_mv abaixo do limiar em algum momento")
-        run["brownout"] = True
-
-    # nome vs metadados CSV
     if run["meta"]:
         first_s = next((r for r in rows if r.get("type") == "S"), None)
         if first_s:
-            csv_ant = first_s.get("antenna","")
-            meta_ant = run["meta"].get("antenna","")
-            if csv_ant and meta_ant and csv_ant.upper() != meta_ant.upper():
-                warns.append(f"SUSPECT: antena no nome ({meta_ant}) difere do CSV ({csv_ant})")
-                if run["status"] == "VALID": run["status"] = "SUSPECT"
+            csv_ant = (first_s.get("antenna") or "").upper()
+            meta_ant = run["meta"].get("antenna", "").upper()
+            if csv_ant and meta_ant and csv_ant != meta_ant:
+                warns.append(f"Antena no nome ({meta_ant}) difere do CSV ({csv_ant})")
 
     return run
 
 # ══════════════════════════════════════════════════════════════
-#  3. AGREGAÇÃO POR PERFIL
+#  3. MÉTRICAS — helpers
 # ══════════════════════════════════════════════════════════════
 def _pct(lst, p):
-    if not lst: return float("nan")
-    s = sorted(lst)
-    i = max(0, int(len(s) * p / 100) - 1)
+    s = [x for x in lst if x is not None and not math.isnan(x)]
+    if not s: return float("nan")
+    s.sort()
+    i = max(0, math.ceil(len(s) * p / 100) - 1)
     return s[i]
+
+def _mean(lst):
+    s = [x for x in lst if x is not None and not math.isnan(x)]
+    return sum(s) / len(s) if s else float("nan")
 
 def _median(lst):
     return _pct(lst, 50)
 
-def aggregate_profile_a(rows: list) -> dict:
-    """Perfil A (BURN): agrega por bloco."""
-    blocks = defaultdict(lambda: {"plr":[], "tput":[], "rssi":[], "lat":[]})
+def _iqr(lst):
+    return _pct(lst, 75) - _pct(lst, 25)
+
+# ══════════════════════════════════════════════════════════════
+#  4. AGREGAÇÃO POR PERFIL
+# ══════════════════════════════════════════════════════════════
+def aggregate_burn(rows: list) -> dict:
+    """Perfil A (BURN 3×60): agrega RSSI, throughput, PLR por bloco."""
+    blocks = defaultdict(lambda: {"rssi": [], "tput": [], "plr": []})
     for r in rows:
         if r.get("type") != "S": continue
-        blk = int(r.get("block") or 0)
         try:
-            plr  = float(r.get("plr_window") or 0)
-            tput = int(r.get("throughput_bps") or 0)
+            blk  = int(r.get("block") or 0)
             rssi = int(r.get("rssi_dbm") or -127)
-            lat  = float(r.get("ping_latency_ms") or 0)
-        except ValueError:
+            tput = int(r.get("throughput_bps") or 0)
+            plr  = float(r.get("plr_window") or 0.0)
+        except (ValueError, TypeError):
             continue
-        blocks[blk]["plr"].append(plr)
-        blocks[blk]["tput"].append(tput)
         blocks[blk]["rssi"].append(rssi)
-        blocks[blk]["lat"].append(lat)
+        blocks[blk]["tput"].append(tput)
+        blocks[blk]["plr"].append(plr)
 
     result = {}
-    for blk, d in blocks.items():
+    for blk, d in sorted(blocks.items()):
         result[blk] = {
-            "plr_median":  _median(d["plr"]),
-            "tput_median": _median(d["tput"]),
+            "rssi_median": _median(d["rssi"]),
             "rssi_p10":    _pct(d["rssi"], 10),
-            "lat_p90":     _pct(d["lat"], 90),
-            "n":           len(d["plr"]),
+            "tput_median": _median(d["tput"]),
+            "tput_p10":    _pct(d["tput"], 10),
+            "plr_median":  _median(d["plr"]),
+            "n":           len(d["rssi"]),
         }
     return result
 
-def aggregate_profile_b_walk(rows: list) -> dict:
-    """Perfil B WALK: máquina de estados TTR."""
-    DISC_THRESHOLD = 3  # pings falhos consecutivos para considerar desconectado
-    events = []
-    consecutive_fail = 0
-    in_disconnect = False
-    disc_start_idx  = None
-
+def aggregate_walk(rows: list) -> dict:
+    """Perfil B WALK: TTR + RSSI."""
+    DISC_THRESHOLD = 3
     pings = [r for r in rows if r.get("type") == "S"]
-    rssi_list = []
-    ttr_list  = []
+    rssi_list, ttr_list = [], []
+    consec_fail, in_disc, disc_ts = 0, False, 0.0
 
-    for i, r in enumerate(pings):
-        ok = int(r.get("ping_ok") or 0)
+    for r in pings:
+        ok   = int(r.get("ping_ok") or 0)
         rssi = int(r.get("rssi_dbm") or -127)
         ts   = float(r.get("timestamp_ms") or 0)
         rssi_list.append(rssi)
 
         if ok == 0:
-            consecutive_fail += 1
-            if consecutive_fail >= DISC_THRESHOLD and not in_disconnect:
-                in_disconnect  = True
-                disc_start_idx = i - DISC_THRESHOLD + 1
-                disc_start_ts  = float(pings[disc_start_idx].get("timestamp_ms") or 0)
-                rssi_at_disc   = rssi_list[disc_start_idx] if disc_start_idx < len(rssi_list) else -127
+            consec_fail += 1
+            if consec_fail >= DISC_THRESHOLD and not in_disc:
+                in_disc = True
+                disc_ts = ts
         else:
-            if in_disconnect:
-                ttr_ms = ts - disc_start_ts
-                events.append({
-                    "disc_ts": disc_start_ts,
-                    "recov_ts": ts,
-                    "ttr_ms": ttr_ms,
-                    "rssi_at_disc": rssi_at_disc,
-                    "recovered": True,
-                })
-                ttr_list.append(ttr_ms / 1000)  # em segundos
-            in_disconnect    = False
-            consecutive_fail = 0
-
-    # desconexão sem recuperação
-    if in_disconnect:
-        events.append({
-            "disc_ts": disc_start_ts,
-            "recov_ts": None,
-            "ttr_ms": None,
-            "rssi_at_disc": rssi_at_disc,
-            "recovered": False,
-        })
+            if in_disc:
+                ttr_list.append((ts - disc_ts) / 1000)
+            in_disc, consec_fail = False, 0
 
     return {
-        "ttr_min_s":    min(ttr_list) if ttr_list else float("nan"),
-        "ttr_max_s":    max(ttr_list) if ttr_list else float("nan"),
-        "ttr_median_s": _median(ttr_list),
-        "disc_events":  len(events),
-        "unrecovered":  sum(1 for e in events if not e["recovered"]),
         "rssi_median":  _median(rssi_list),
         "rssi_p10":     _pct(rssi_list, 10),
-        "events":       events,
+        "ttr_median_s": _median(ttr_list),
+        "ttr_p90_s":    _pct(ttr_list, 90),
+        "disc_events":  len(ttr_list),
+        "n":            len(pings),
     }
 
-def aggregate_profile_b_clock(rows: list) -> dict:
+def aggregate_clock(rows: list) -> dict:
     """Perfil B CLOCK: GROUP BY marker."""
-    by_marker = defaultdict(lambda: {"rssi":[], "ok":[], "lat":[]})
+    by_marker = defaultdict(lambda: {"rssi": [], "ok": [], "lat": []})
     for r in rows:
         if r.get("type") != "S": continue
-        marker = r.get("marker","") or "NO_MARK"
+        marker = (r.get("marker") or "SEM_MARK").strip() or "SEM_MARK"
         try:
             rssi = int(r.get("rssi_dbm") or -127)
-            ok   = int(r.get("ping_ok")  or 0)
+            ok   = int(r.get("ping_ok") or 0)
             lat  = float(r.get("ping_latency_ms") or 0)
-        except ValueError:
+        except (ValueError, TypeError):
             continue
         by_marker[marker]["rssi"].append(rssi)
         by_marker[marker]["ok"].append(ok)
@@ -273,94 +231,76 @@ def aggregate_profile_b_clock(rows: list) -> dict:
     result = {}
     for mark, d in by_marker.items():
         n   = len(d["ok"])
-        plr = (1 - sum(d["ok"]) / n) * 100 if n > 0 else 100.0
+        plr = (1 - sum(d["ok"]) / n) * 100 if n else 100.0
         result[mark] = {
             "rssi_median": _median(d["rssi"]),
             "rssi_p10":    _pct(d["rssi"], 10),
-            "rssi_sigma":  (
-                math.sqrt(sum((x - _median(d["rssi"]))**2 for x in d["rssi"]) / n)
-                if n > 1 else 0.0
-            ),
-            "plr_pct": plr,
-            "n": n,
+            "plr_pct":     plr,
+            "lat_median":  _median(d["lat"]),
+            "n":           n,
         }
     return result
 
 # ══════════════════════════════════════════════════════════════
-#  4. CONSOLIDAÇÃO (3 RUNS → MEDIANA + IQR)
+#  5. CONSOLIDAÇÃO (múltiplos runs → mediana)
 # ══════════════════════════════════════════════════════════════
-def consolidate(runs_agg: list, profile: str) -> dict:
-    """
-    runs_agg: lista de dicts agregados (1 por run válido)
-    Retorna mediana + IQR das métricas principais + status de dados
-    """
-    if not runs_agg:
-        return {"data_status": "INSUFFICIENT_DATA"}
+def consolidate_burn(agg_list: list) -> dict:
+    if not agg_list:
+        return {}
+    all_blocks = set(b for a in agg_list for b in a.keys())
+    result = {}
+    for blk in sorted(all_blocks):
+        rssi_vals = [a[blk]["rssi_p10"]    for a in agg_list if blk in a]
+        tput_vals = [a[blk]["tput_median"] for a in agg_list if blk in a]
+        plr_vals  = [a[blk]["plr_median"]  for a in agg_list if blk in a]
+        result[blk] = {
+            "rssi_p10":    _median(rssi_vals),
+            "tput_median": _median(tput_vals),
+            "plr_median":  _median(plr_vals),
+            "n_runs":      len(rssi_vals),
+        }
+    return result
 
-    valid = [r for r in runs_agg if r is not None]
-    n = len(valid)
+def consolidate_walk(agg_list: list) -> dict:
+    if not agg_list:
+        return {}
+    return {
+        "rssi_p10":     _median([a["rssi_p10"]     for a in agg_list]),
+        "rssi_median":  _median([a["rssi_median"]  for a in agg_list]),
+        "ttr_median_s": _median([a["ttr_median_s"] for a in agg_list]),
+        "disc_events":  _median([a["disc_events"]  for a in agg_list]),
+        "n_runs":       len(agg_list),
+    }
 
-    if n == 0:
-        return {"data_status": "INSUFFICIENT_DATA"}
-    if n == 1:
-        status = "SINGLE_RUN_WARNING"
-    elif n == 2:
-        status = "TWO_RUNS_WARNING"
-    else:
-        status = "OK"
-
-    def _med_iqr(vals):
-        vals = [v for v in vals if v is not None and not math.isnan(float(v))]
-        if not vals: return float("nan"), float("nan")
-        med = _median(vals)
-        q1  = _pct(vals, 25)
-        q3  = _pct(vals, 75)
-        return med, q3 - q1
-
-    result = {"data_status": status, "n_runs": n}
-
-    if profile == "A":
-        for blk in set(blk for r in valid for blk in r.keys() if isinstance(blk, int)):
-            blk_data = [r.get(blk, {}) for r in valid]
-            result[f"block{blk}_plr_med"],  result[f"block{blk}_plr_iqr"]  = _med_iqr([d.get("plr_median")  for d in blk_data])
-            result[f"block{blk}_tput_med"], result[f"block{blk}_tput_iqr"] = _med_iqr([d.get("tput_median") for d in blk_data])
-            result[f"block{blk}_rssi_p10"], _                               = _med_iqr([d.get("rssi_p10")    for d in blk_data])
-
-    elif profile == "B_WALK":
-        result["ttr_median_s"], result["ttr_iqr_s"] = _med_iqr([r.get("ttr_median_s") for r in valid])
-        result["rssi_p10"],     _                    = _med_iqr([r.get("rssi_p10")     for r in valid])
-        result["disc_events_med"], _                 = _med_iqr([r.get("disc_events")  for r in valid])
-
-    elif profile == "B_CLOCK":
-        # consolida por marker
-        all_marks = set(m for r in valid for m in r.keys() if isinstance(m, str) and m != "data_status")
-        result["markers"] = {}
-        for m in all_marks:
-            result["markers"][m] = {
-                "rssi_median_med": _median([r[m]["rssi_median"] for r in valid if m in r]),
-                "rssi_p10_med":    _median([r[m]["rssi_p10"]    for r in valid if m in r]),
-                "plr_med":         _median([r[m]["plr_pct"]     for r in valid if m in r]),
-            }
-
+def consolidate_clock(agg_list: list) -> dict:
+    if not agg_list:
+        return {}
+    all_marks = set(m for a in agg_list for m in a.keys())
+    result = {"markers": {}, "n_runs": len(agg_list)}
+    for mark in sorted(all_marks):
+        runs_with = [a[mark] for a in agg_list if mark in a]
+        result["markers"][mark] = {
+            "rssi_median": _median([r["rssi_median"] for r in runs_with]),
+            "rssi_p10":    _median([r["rssi_p10"]    for r in runs_with]),
+            "plr_pct":     _median([r["plr_pct"]     for r in runs_with]),
+            "n_runs":      len(runs_with),
+        }
     return result
 
 # ══════════════════════════════════════════════════════════════
-#  5. SCORE RF
+#  6. SCORE RF (0–100)
 # ══════════════════════════════════════════════════════════════
-def compute_score(antenna_data: dict, weights: dict) -> dict:
-    """
-    antenna_data: {antenna: {plr, ttr, rssi_p10, tput}}
-    weights: {plr, ttr, rssi, tput}
-    Retorna {antenna: score_0_100}
-    """
-    metrics = {"plr": {}, "ttr": {}, "rssi": {}, "tput": {}}
-    for ant, d in antenna_data.items():
-        metrics["plr"][ant]  = d.get("plr",  100.0)
-        metrics["ttr"][ant]  = d.get("ttr",  999.0)
-        metrics["rssi"][ant] = d.get("rssi", -127.0)
-        metrics["tput"][ant] = d.get("tput", 0.0)
+DEFAULT_WEIGHTS = {"plr": 0.30, "ttr": 0.25, "rssi": 0.25, "tput": 0.20}
 
-    def _norm_min(vals):  # menor = melhor → normaliza para 0–1 onde 1 = melhor
+def compute_scores(antenna_metrics: dict, weights: dict) -> dict:
+    """
+    antenna_metrics: {ant: {rssi_p10, tput_median, plr_median, ttr_median_s}}
+    Retorna {ant: score_0_100}
+    """
+    if not antenna_metrics:
+        return {}
+
+    def _norm_min(vals):  # menor = melhor
         lo, hi = min(vals.values()), max(vals.values())
         if hi == lo: return {k: 1.0 for k in vals}
         return {k: 1.0 - (v - lo) / (hi - lo) for k, v in vals.items()}
@@ -370,346 +310,457 @@ def compute_score(antenna_data: dict, weights: dict) -> dict:
         if hi == lo: return {k: 1.0 for k in vals}
         return {k: (v - lo) / (hi - lo) for k, v in vals.items()}
 
-    n_plr  = _norm_min(metrics["plr"])
-    n_ttr  = _norm_min(metrics["ttr"])
-    n_rssi = _norm_max(metrics["rssi"])
-    n_tput = _norm_max(metrics["tput"])
+    plr_n  = _norm_min({a: d.get("plr_median",  100.0) for a, d in antenna_metrics.items()})
+    ttr_n  = _norm_min({a: d.get("ttr_median_s", 999.0) for a, d in antenna_metrics.items()})
+    rssi_n = _norm_max({a: d.get("rssi_p10",    -127.0) for a, d in antenna_metrics.items()})
+    tput_n = _norm_max({a: d.get("tput_median",    0.0) for a, d in antenna_metrics.items()})
 
     scores = {}
-    for ant in antenna_data:
-        s = (weights.get("plr",  0.30) * n_plr.get(ant,  0) +
-             weights.get("ttr",  0.25) * n_ttr.get(ant,  0) +
-             weights.get("rssi", 0.25) * n_rssi.get(ant, 0) +
-             weights.get("tput", 0.20) * n_tput.get(ant, 0))
+    for ant in antenna_metrics:
+        s = (weights.get("plr",  0.30) * plr_n[ant]  +
+             weights.get("ttr",  0.25) * ttr_n[ant]  +
+             weights.get("rssi", 0.25) * rssi_n[ant] +
+             weights.get("tput", 0.20) * tput_n[ant])
         scores[ant] = round(s * 100, 1)
-
     return scores
 
 # ══════════════════════════════════════════════════════════════
-#  6. LIMIARES PASS/FAIL
+#  7. PIPELINE PRINCIPAL
 # ══════════════════════════════════════════════════════════════
-THRESHOLDS = {
-    "F0":  {"plr": {"pass": 2.0,   "fail": 5.0}},
-    "F1":  {"ttr": {"pass": 5.0,   "fail": 10.0}},
-    "F2":  {"rssi_p10": {"pass": -80.0, "fail": -85.0, "dir": "max"},
-            "plr":      {"pass": 5.0,   "fail": 10.0}},
-    "F3A": {"delta_plr": {"pass": 3.0, "fail": 10.0}},
-    "F3B": {"plr_block3": {"pass": 5.0, "fail": 10.0},
-            "tput_block3": {"pass": 1e6, "fail": 5e5, "dir": "max"}},
-}
+def run_pipeline(campaign_dir: Path, weights: dict):
+    print(f"\nRF Field Validator — Parser N2.1")
+    print(f"Campanha: {campaign_dir}\n{'─'*50}")
 
-def pass_fail(phase: str, metrics: dict) -> dict:
-    th = THRESHOLDS.get(phase, {})
-    result = {}
-    for metric, limits in th.items():
-        val = metrics.get(metric)
-        if val is None or math.isnan(float(val if val is not None else float("nan"))):
-            result[metric] = "NO_DATA"
-            continue
-        direction = limits.get("dir", "min")  # min = menor é melhor
-        if direction == "min":
-            if val < limits["pass"]:   result[metric] = "PASS"
-            elif val >= limits["fail"]: result[metric] = "FAIL"
-            else:                       result[metric] = "MARGINAL"
-        else:
-            if val > limits["pass"]:   result[metric] = "PASS"
-            elif val <= limits["fail"]: result[metric] = "FAIL"
-            else:                       result[metric] = "MARGINAL"
-    return result
+    # Localiza CSVs
+    logs_dir = campaign_dir / "logs"
+    if not logs_dir.exists():
+        logs_dir = campaign_dir
+    csv_files = sorted(f for f in logs_dir.glob("*.csv")
+                       if FILENAME_RE.match(f.name))
 
-# ══════════════════════════════════════════════════════════════
-#  7. DETECÇÃO ENVIRONMENT_SHIFTED (REF_START vs REF_END)
-# ══════════════════════════════════════════════════════════════
-RSSI_SHIFT_THRESHOLD = 3.0  # dB
+    if not csv_files:
+        print(f"[ERRO] Nenhum CSV válido encontrado em {logs_dir}")
+        sys.exit(1)
+    print(f"Arquivos encontrados: {len(csv_files)}\n")
 
-def check_env_shift(ref_start_rows, ref_end_rows) -> dict:
-    def _mean_rssi(rows):
-        vals = [int(r.get("rssi_dbm",-127)) for r in rows
-                if r.get("type") == "S" and r.get("rssi_dbm","")]
-        return sum(vals) / len(vals) if vals else None
+    # Ingestão e validação
+    runs = []
+    for p in csv_files:
+        run = ingest_file(p)
+        validate_run(run)
+        runs.append(run)
+        n_s = sum(1 for r in run["rows"] if r.get("type") == "S")
+        st  = run["status"]
+        flag = "OK " if st == "VALID" else "!!!"
+        print(f"  [{flag}] {p.name:45s} {n_s:3d} amostras  [{st}]")
+        for w in run["warnings"]:
+            print(f"        AVISO: {w}")
 
-    rs = _mean_rssi(ref_start_rows)
-    re = _mean_rssi(ref_end_rows)
-    if rs is None or re is None:
-        return {"status": "NO_REF", "delta_db": None}
-    delta = abs(re - rs)
-    return {
-        "status": "ENVIRONMENT_SHIFTED" if delta >= RSSI_SHIFT_THRESHOLD else "STABLE",
-        "delta_db": round(delta, 2),
-        "ref_start_rssi": round(rs, 2),
-        "ref_end_rssi": round(re, 2),
-    }
+    valid_runs = [r for r in runs if r["status"] in ("VALID", "SUSPECT", "INCOMPLETE")]
+
+    # Agrega por (antena, modo)
+    by_ant_mode = defaultdict(list)
+    for run in valid_runs:
+        meta = run.get("meta", {})
+        if not meta: continue
+        key = (meta["antenna"], meta["mode"])
+        by_ant_mode[key].append(run)
+
+    # Consolida por antena
+    consolidated = {}   # {(ant, mode): dados consolidados}
+    antenna_metrics = {}  # {ant: {rssi_p10, tput_median, plr_median, ttr_median_s}}
+    raw_samples = defaultdict(list)  # {ant: [todas as linhas S de todos os runs]}
+
+    for (ant, mode), grp in sorted(by_ant_mode.items()):
+        agg_list = []
+        for run in grp:
+            if mode == "BURN":
+                agg_list.append(aggregate_burn(run["rows"]))
+                for r in run["rows"]:
+                    if r.get("type") == "S":
+                        raw_samples[ant].append(r)
+            elif mode == "WALK":
+                agg_list.append(aggregate_walk(run["rows"]))
+                for r in run["rows"]:
+                    if r.get("type") == "S":
+                        raw_samples[ant].append(r)
+            elif mode == "CLOCK":
+                agg_list.append(aggregate_clock(run["rows"]))
+
+        if mode == "BURN":
+            cons = consolidate_burn(agg_list)
+            consolidated[(ant, mode)] = cons
+            # Extrai métricas para score
+            rssi_vals = [cons[b]["rssi_p10"]    for b in cons]
+            tput_vals = [cons[b]["tput_median"] for b in cons]
+            plr_vals  = [cons[b]["plr_median"]  for b in cons]
+            if ant not in antenna_metrics:
+                antenna_metrics[ant] = {"rssi_p10": -127.0, "tput_median": 0.0,
+                                        "plr_median": 100.0, "ttr_median_s": 999.0}
+            d = antenna_metrics[ant]
+            if rssi_vals: d["rssi_p10"]    = max(d["rssi_p10"],    _median(rssi_vals))
+            if tput_vals: d["tput_median"] = max(d["tput_median"], _median(tput_vals))
+            if plr_vals:  d["plr_median"]  = min(d["plr_median"],  _median(plr_vals))
+
+        elif mode == "WALK":
+            cons = consolidate_walk(agg_list)
+            consolidated[(ant, mode)] = cons
+            if ant not in antenna_metrics:
+                antenna_metrics[ant] = {"rssi_p10": -127.0, "tput_median": 0.0,
+                                        "plr_median": 100.0, "ttr_median_s": 999.0}
+            d = antenna_metrics[ant]
+            if not math.isnan(cons.get("rssi_p10", float("nan"))):
+                d["rssi_p10"] = max(d["rssi_p10"], cons["rssi_p10"])
+            if not math.isnan(cons.get("ttr_median_s", float("nan"))):
+                d["ttr_median_s"] = min(d["ttr_median_s"], cons["ttr_median_s"])
+
+        elif mode == "CLOCK":
+            cons = consolidate_clock(agg_list)
+            consolidated[(ant, mode)] = cons
+            if ant not in antenna_metrics:
+                antenna_metrics[ant] = {"rssi_p10": -127.0, "tput_median": 0.0,
+                                        "plr_median": 100.0, "ttr_median_s": 999.0}
+            d = antenna_metrics[ant]
+            marker_rssi = [v["rssi_p10"] for v in cons.get("markers", {}).values()]
+            if marker_rssi:
+                d["rssi_p10"] = max(d["rssi_p10"], _median(marker_rssi))
+
+    # Score RF
+    scores = compute_scores(antenna_metrics, weights)
+    print(f"\nScores RF:")
+    for ant, sc in sorted(scores.items(), key=lambda x: x[1], reverse=True):
+        bar = "█" * int(sc / 5)
+        print(f"  {ant:6s}: {sc:5.1f}  {bar}")
+
+    # Exporta summary.csv
+    report_dir = campaign_dir / "report"
+    report_dir.mkdir(exist_ok=True)
+    summary_path = report_dir / "summary.csv"
+    with open(summary_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["antenna","score","rssi_p10_dbm","tput_median_bps","plr_median_pct","ttr_median_s"])
+        for ant, d in sorted(antenna_metrics.items()):
+            w.writerow([ant, scores.get(ant, ""), d["rssi_p10"], d["tput_median"],
+                        d["plr_median"], d["ttr_median_s"]])
+    print(f"\nSummary CSV: {summary_path}")
+
+    # Relatório HTML
+    out_html = report_dir / "report.html"
+    render_report(out_html, campaign_dir.name, runs, scores,
+                  antenna_metrics, consolidated, raw_samples)
+    print(f"Relatório:   {out_html}")
+    print(f"\nAbra o arquivo no navegador para ver os gráficos.")
 
 # ══════════════════════════════════════════════════════════════
 #  8. RELATÓRIO HTML
 # ══════════════════════════════════════════════════════════════
-def render_report(campaign_dir: Path, results: dict, scores: dict, out_path: Path):
-    now = datetime.now().strftime("%d/%m/%Y %H:%M")
-    campaign_name = campaign_dir.name
+def _nan_to_none(v):
+    if v is None: return None
+    try:
+        return None if math.isnan(float(v)) else v
+    except Exception:
+        return v
 
-    # Tabela de runs
-    run_rows_html = ""
-    for run in results["runs"]:
-        status = run.get("status","?")
-        color  = {"VALID":"#22c55e","INCOMPLETE":"#f59e0b","INVALID":"#ef4444",
-                  "SUSPECT":"#f97316"}.get(status, "#94a3b8")
-        warns  = "; ".join(run.get("warnings",[]))[:120]
-        run_rows_html += f"""
+def render_report(out_path: Path, campaign_name: str, runs: list,
+                  scores: dict, antenna_metrics: dict,
+                  consolidated: dict, raw_samples: dict):
+
+    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
+
+    # ── Dados para os gráficos (JSON) ──────────────────────────
+    colors = ["#58a6ff","#3fb950","#f78166","#d29922","#a371f7",
+              "#39d353","#ff7b72","#ffa657","#79c0ff","#56d364"]
+    ant_colors = {a: colors[i % len(colors)] for i, a in enumerate(sorted_ants)}
+
+    # RSSI e throughput por amostra (time series)
+    series_data = {}
+    for ant in sorted_ants:
+        samples = raw_samples.get(ant, [])
+        if not samples: continue
+        series_data[ant] = {
+            "ts":   [int(r.get("timestamp_ms") or 0) for r in samples],
+            "rssi": [int(r.get("rssi_dbm") or -127) for r in samples],
+            "tput": [int(r.get("throughput_bps") or 0) for r in samples],
+        }
+
+    # Métricas resumidas por antena
+    summary_labels = sorted_ants
+    rssi_vals  = [_nan_to_none(antenna_metrics[a]["rssi_p10"])    for a in sorted_ants]
+    tput_vals  = [_nan_to_none(antenna_metrics[a]["tput_median"]) for a in sorted_ants]
+    plr_vals   = [_nan_to_none(antenna_metrics[a]["plr_median"])  for a in sorted_ants]
+    score_vals = [scores[a] for a in sorted_ants]
+
+    # ── Tabela de runs ──────────────────────────────────────────
+    run_rows = ""
+    for run in runs:
+        st = run.get("status", "?")
+        color = {"VALID":"#3fb950","INCOMPLETE":"#d29922",
+                 "INVALID":"#f85149","SUSPECT":"#ffa657"}.get(st, "#8b949e")
+        meta = run.get("meta", {})
+        mode = meta.get("mode", "?")
+        ant  = meta.get("antenna", "?")
+        rn   = meta.get("run_number", "?")
+        n_s  = sum(1 for r in run["rows"] if r.get("type") == "S")
+        warns = "; ".join(run.get("warnings", []))[:120] or "—"
+        run_rows += f"""
 <tr>
   <td>{Path(run['path']).name}</td>
-  <td style="color:{color};font-weight:700">{status}</td>
-  <td style="font-size:11px;color:#64748b">{warns}</td>
+  <td>{ant}</td><td>{mode}</td><td>R{rn:02d}</td>
+  <td>{n_s}</td>
+  <td style="color:{color};font-weight:700">{st}</td>
+  <td style="font-size:11px;color:#8b949e">{warns}</td>
 </tr>"""
 
-    # Tabela de scores
-    score_rows_html = ""
-    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    for rank, (ant, score) in enumerate(sorted_scores, 1):
-        bar = int(score)
-        score_rows_html += f"""
-<tr>
-  <td style="font-weight:700">#{rank}</td>
-  <td style="font-weight:700;color:#f1f5f9">{ant}</td>
-  <td>
-    <div style="background:#1f2937;border-radius:4px;height:18px;width:200px;display:inline-block;vertical-align:middle">
-      <div style="background:{'#22c55e' if score>=70 else '#f59e0b' if score>=40 else '#ef4444'};height:100%;width:{bar}%;border-radius:4px"></div>
-    </div>
-    <span style="margin-left:8px;font-weight:700;color:#f1f5f9">{score:.1f}</span>
-  </td>
-</tr>"""
+    # ── Score badges ────────────────────────────────────────────
+    score_badges = ""
+    for rank, ant in enumerate(sorted_ants, 1):
+        sc   = scores[ant]
+        col  = "#3fb950" if sc >= 70 else "#d29922" if sc >= 40 else "#f85149"
+        pct  = min(100, max(0, int(sc)))
+        crown = " 👑" if rank == 1 else ""
+        score_badges += f"""
+<div style="margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#{rank} {ant}{crown}</span>
+    <span style="font-weight:900;font-size:1.3em;color:{col}">{sc:.1f}</span>
+  </div>
+  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
+    <div style="background:{col};height:100%;width:{pct}%;border-radius:6px;
+                transition:width .6s ease"></div>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
+    <span>RSSI P10: <strong style="color:#e6edf3">{antenna_metrics[ant]['rssi_p10']:.0f} dBm</strong></span>
+    <span>Throughput: <strong style="color:#e6edf3">{antenna_metrics[ant]['tput_median']/1e6:.2f} Mbps</strong></span>
+    <span>PLR: <strong style="color:#e6edf3">{antenna_metrics[ant]['plr_median']:.1f}%</strong></span>
+  </div>
+</div>"""
 
-    # JSON de dados para gráficos inline
-    chart_data = json.dumps({
-        "scores": dict(sorted_scores),
-        "env_shift": results.get("env_shift", {}),
-    })
+    # ── Monta JSON para Chart.js ────────────────────────────────
+    chart_json = json.dumps({
+        "antennas":      sorted_ants,
+        "colors":        [ant_colors[a] for a in sorted_ants],
+        "scores":        score_vals,
+        "rssi":          rssi_vals,
+        "tput_mbps":     [t/1e6 if t else None for t in tput_vals],
+        "plr":           plr_vals,
+        "series":        series_data,
+    }, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Relatório RF — {campaign_name}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:#0a0f1e;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;padding:2rem}}
-h1{{font-size:1.8rem;font-weight:900;color:#f1f5f9;margin-bottom:.3rem}}
-h2{{font-size:1.1rem;font-weight:700;color:#94a3b8;text-transform:uppercase;
-   letter-spacing:.08em;margin:2rem 0 .8rem;border-bottom:1px solid #1f2937;padding-bottom:.4rem}}
-table{{width:100%;border-collapse:collapse;margin-bottom:1rem}}
-th{{background:#111827;color:#94a3b8;font-size:11px;text-transform:uppercase;
-   letter-spacing:.07em;padding:.5rem .75rem;text-align:left}}
-td{{padding:.45rem .75rem;border-bottom:1px solid #1f2937;font-size:13px}}
-.card{{background:#111827;border:1px solid #1f2937;border-radius:10px;padding:1.2rem;
-      margin-bottom:1rem}}
-.badge{{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;
-       font-weight:700;text-transform:uppercase}}
-.ok{{background:rgba(34,197,94,.15);color:#22c55e}}
-.warn{{background:rgba(245,158,11,.15);color:#f59e0b}}
-.fail{{background:rgba(239,68,68,.15);color:#ef4444}}
-footer{{margin-top:3rem;font-size:11px;color:#374151;text-align:center}}
+body{{background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;padding:20px;max-width:1100px;margin:auto}}
+h1{{font-size:1.6em;font-weight:900;color:#f0f6fc;margin-bottom:4px}}
+h2{{font-size:.8em;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;
+   margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #21262d}}
+.grid2{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}}
+.grid3{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}}
+.card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}}
+.chart-card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:16px}}
+table{{width:100%;border-collapse:collapse;font-size:13px}}
+th{{background:#161b22;color:#8b949e;font-size:10px;text-transform:uppercase;
+   letter-spacing:.06em;padding:7px 10px;text-align:left;border-bottom:1px solid #30363d}}
+td{{padding:7px 10px;border-bottom:1px solid #21262d;font-size:12px}}
+tr:last-child td{{border-bottom:none}}
+.tag{{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700}}
+footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;padding-top:16px;
+        border-top:1px solid #21262d}}
+@media(max-width:700px){{.grid2,.grid3{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
-<h1>Relatório RF de Campo</h1>
-<p style="color:#64748b;margin-bottom:2rem">
-  Campanha: <strong style="color:#e2e8f0">{campaign_name}</strong> &nbsp;·&nbsp;
-  Gerado em {now} &nbsp;·&nbsp;
-  {len(results['runs'])} runs processados
-</p>
 
-<h2>1. Resumo Executivo</h2>
-<div class="card">
-  {'<span class="badge ok">Ambiente estável</span>' if results.get('env_shift',{}).get('status')=='STABLE'
-   else '<span class="badge warn">Verificar deslocamento de ambiente</span>'}
-  &nbsp;
-  {'&nbsp;Δ RSSI turno: ' + str(results.get('env_shift',{}).get('delta_db','—')) + ' dB' if results.get('env_shift',{}).get('delta_db') is not None else ''}
-  <p style="margin-top:.8rem;color:#94a3b8;font-size:13px">
-    Antena com maior score:
-    <strong style="color:#22c55e;font-size:1.2rem">
-      {sorted_scores[0][0] if sorted_scores else '—'}
-    </strong>
-    ({sorted_scores[0][1]:.1f} pts)
+<div style="margin-bottom:24px">
+  <h1>Relatório RF de Campo</h1>
+  <p style="color:#8b949e;font-size:13px;margin-top:4px">
+    Campanha: <strong style="color:#c9d1d9">{campaign_name}</strong>
+    &nbsp;·&nbsp; Gerado em {now}
+    &nbsp;·&nbsp; {len(runs)} runs · {len(sorted_ants)} antenas
   </p>
 </div>
 
-<h2>2. Ranking RF (Score Composto)</h2>
-<table>
-  <tr><th>Rank</th><th>Antena</th><th>Score 0–100</th></tr>
-  {score_rows_html}
-</table>
-
-<h2>3. Validação de Runs</h2>
-<table>
-  <tr><th>Arquivo</th><th>Status</th><th>Avisos</th></tr>
-  {run_rows_html}
-</table>
-
-<h2>4. Referência de Turno</h2>
+<h2>Ranking de Antenas — Score RF Composto</h2>
 <div class="card">
-{f"""
-  <p>REF_START RSSI médio: <strong>{results['env_shift'].get('ref_start_rssi','—')} dBm</strong></p>
-  <p>REF_END RSSI médio: <strong>{results['env_shift'].get('ref_end_rssi','—')} dBm</strong></p>
-  <p>Delta: <strong>{results['env_shift'].get('delta_db','—')} dB</strong> →
-    <span class="badge {'ok' if results['env_shift'].get('status')=='STABLE' else 'warn'}">
-      {results['env_shift'].get('status','—')}
-    </span>
+  {score_badges}
+  <p style="font-size:11px;color:#484f58;margin-top:8px">
+    Score = 30% PLR + 25% TTR + 25% RSSI P10 + 20% Throughput (normalizado min-max entre antenas)
   </p>
-""" if results.get('env_shift') else '<p style="color:#64748b">Sem runs de referência nesta campanha.</p>'}
 </div>
 
-<h2>5. Dados de Agregação</h2>
-<div class="card">
-  <pre style="font-size:11px;color:#94a3b8;overflow:auto;max-height:400px">{json.dumps(results.get('aggregated',{}), indent=2, ensure_ascii=False)}</pre>
+<h2>Comparação de Métricas</h2>
+<div class="grid3">
+  <div class="card" style="text-align:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10</div>
+    <canvas id="chartRssi" height="220"></canvas>
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">Throughput Médio</div>
+    <canvas id="chartTput" height="220"></canvas>
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">PLR Médio</div>
+    <canvas id="chartPlr" height="220"></canvas>
+  </div>
 </div>
+
+<h2>RSSI ao Longo do Tempo</h2>
+<div class="chart-card">
+  <canvas id="chartRssiTime" height="120"></canvas>
+</div>
+
+<h2>Throughput ao Longo do Tempo</h2>
+<div class="chart-card">
+  <canvas id="chartTputTime" height="120"></canvas>
+</div>
+
+<h2>Validação de Runs</h2>
+<table>
+  <tr>
+    <th>Arquivo</th><th>Antena</th><th>Modo</th><th>Run</th>
+    <th>Amostras</th><th>Status</th><th>Avisos</th>
+  </tr>
+  {run_rows}
+</table>
 
 <footer>
   RF Field Validator N2.1 · Terasite Tecnologia · {now}
 </footer>
+
 <script>
-const DATA = {chart_data};
-console.log("Chart data:", DATA);
+const D = {chart_json};
+
+const FONT = {{color:'#8b949e',size:11}};
+const GRID = 'rgba(48,54,61,0.8)';
+Chart.defaults.color = '#8b949e';
+Chart.defaults.font.family = 'system-ui,sans-serif';
+
+function barChart(id, labels, datasets, opts={{}}) {{
+  return new Chart(document.getElementById(id), {{
+    type: 'bar',
+    data: {{ labels, datasets }},
+    options: {{
+      responsive: true,
+      plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
+      scales: {{
+        x: {{ ticks: {{ color:'#8b949e',font:{{size:10}} }}, grid:{{ color:GRID }} }},
+        y: {{ ...opts, ticks: {{ color:'#8b949e',font:{{size:10}} }}, grid:{{ color:GRID }} }}
+      }}
+    }}
+  }});
+}}
+
+// RSSI P10
+barChart('chartRssi', D.antennas, [{{
+  label: 'RSSI P10 (dBm)',
+  data: D.rssi,
+  backgroundColor: D.colors.map(c => c+'99'),
+  borderColor: D.colors,
+  borderWidth: 2,
+  borderRadius: 4,
+}}], {{ min: -100, max: -40, reverse: false }});
+
+// Throughput
+barChart('chartTput', D.antennas, [{{
+  label: 'Throughput médio (Mbps)',
+  data: D.tput_mbps,
+  backgroundColor: D.colors.map(c => c+'99'),
+  borderColor: D.colors,
+  borderWidth: 2,
+  borderRadius: 4,
+}}]);
+
+// PLR
+barChart('chartPlr', D.antennas, [{{
+  label: 'PLR médio (%)',
+  data: D.plr,
+  backgroundColor: D.colors.map(c => c+'99'),
+  borderColor: D.colors,
+  borderWidth: 2,
+  borderRadius: 4,
+}}], {{ min: 0 }});
+
+// Time series — RSSI
+(function() {{
+  const datasets = [];
+  Object.entries(D.series).forEach(([ant, s], i) => {{
+    if (!s.rssi || !s.rssi.length) return;
+    datasets.push({{
+      label: ant,
+      data: s.rssi.map((v, j) => ({{x: j, y: v}})),
+      borderColor: D.colors[i] || '#58a6ff',
+      backgroundColor: 'transparent',
+      pointRadius: 3,
+      tension: 0.3,
+    }});
+  }});
+  if (!datasets.length) return;
+  new Chart(document.getElementById('chartRssiTime'), {{
+    type: 'line',
+    data: {{ datasets }},
+    options: {{
+      responsive: true,
+      plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
+      scales: {{
+        x: {{ type:'linear', title:{{display:true,text:'Amostra',color:'#8b949e'}},
+              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+        y: {{ title:{{display:true,text:'RSSI (dBm)',color:'#8b949e'}},
+              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+      }}
+    }}
+  }});
+}})();
+
+// Time series — Throughput
+(function() {{
+  const datasets = [];
+  Object.entries(D.series).forEach(([ant, s], i) => {{
+    if (!s.tput || !s.tput.length) return;
+    datasets.push({{
+      label: ant,
+      data: s.tput.map((v, j) => ({{x: j, y: v/1e6}})),
+      borderColor: D.colors[i] || '#58a6ff',
+      backgroundColor: 'transparent',
+      pointRadius: 3,
+      tension: 0.3,
+    }});
+  }});
+  if (!datasets.length) return;
+  new Chart(document.getElementById('chartTputTime'), {{
+    type: 'line',
+    data: {{ datasets }},
+    options: {{
+      responsive: true,
+      plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
+      scales: {{
+        x: {{ type:'linear', title:{{display:true,text:'Amostra',color:'#8b949e'}},
+              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+        y: {{ title:{{display:true,text:'Throughput (Mbps)',color:'#8b949e'}},
+              min: 0,
+              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+      }}
+    }}
+  }});
+}})();
 </script>
 </body>
 </html>"""
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html, encoding="utf-8")
-    print(f"  Relatório: {out_path}")
-
-# ══════════════════════════════════════════════════════════════
-#  9. PIPELINE PRINCIPAL
-# ══════════════════════════════════════════════════════════════
-def run_pipeline(campaign_dir: Path, weights: dict):
-    print(f"\nPipeline RF — {campaign_dir}\n{'─'*50}")
-
-    logs_dir = campaign_dir / "logs"
-    if not logs_dir.exists():
-        print("[WARN] Diretório logs/ não encontrado. Tentando raiz.")
-        logs_dir = campaign_dir
-
-    csv_files = sorted(logs_dir.glob("*.csv"))
-    print(f"  Arquivos encontrados: {len(csv_files)}")
-
-    # Carrega campaign.csv se existir
-    campaign_meta = {}
-    camp_csv = campaign_dir / "campaign.csv"
-    if camp_csv.exists():
-        with open(camp_csv, encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                campaign_meta[row.get("run_id","")] = row
-
-    # Ingestão + validação
-    runs = []
-    for p in csv_files:
-        run = ingest_file(p)
-        validate_run(run)
-        runs.append(run)
-        st = run["status"]
-        n  = len([r for r in run["rows"] if r.get("type") == "S"])
-        print(f"  [{st:12s}] {p.name}  ({n} amostras S, {len(run['warnings'])} avisos)")
-
-    # Referência de turno
-    ref_start, ref_end = [], []
-    for run in runs:
-        for r in run["rows"]:
-            if r.get("notes") == "REF_START": ref_start.append(r)
-            if r.get("notes") == "REF_END":   ref_end.append(r)
-    env_shift = check_env_shift(ref_start, ref_end)
-    if env_shift["status"] == "ENVIRONMENT_SHIFTED":
-        print(f"  [WARN] ENVIRONMENT_SHIFTED Δ={env_shift['delta_db']} dB")
-    elif env_shift["status"] == "STABLE":
-        print(f"  [OK] Ambiente estável Δ={env_shift['delta_db']} dB")
-
-    # Agregação por antena e perfil
-    from itertools import groupby
-    aggregated = {}
-    antenna_scores_input = {}
-
-    valid_runs = [r for r in runs if r["status"] in ("VALID","SUSPECT")]
-
-    # Agrupa por (antena, modo)
-    by_ant_mode = defaultdict(list)
-    for run in valid_runs:
-        meta = run["meta"]
-        if not meta: continue
-        key = (meta.get("antenna","?"), meta.get("mode","?"))
-        by_ant_mode[key].append(run)
-
-    for (ant, mode), grp in by_ant_mode.items():
-        agg_list = []
-        for run in grp:
-            rows_s = [r for r in run["rows"] if r.get("type") == "S"]
-            if mode == "BURN":
-                agg_list.append(aggregate_profile_a(run["rows"]))
-            elif mode == "WALK":
-                agg_list.append(aggregate_profile_b_walk(run["rows"]))
-            elif mode == "CLOCK":
-                agg_list.append(aggregate_profile_b_clock(run["rows"]))
-
-        profile_key = {"BURN":"A","WALK":"B_WALK","CLOCK":"B_CLOCK"}.get(mode,"?")
-        cons = consolidate(agg_list, profile_key)
-        aggregated[f"{ant}_{mode}"] = cons
-
-        # Extrai métricas para score RF
-        if ant not in antenna_scores_input:
-            antenna_scores_input[ant] = {"plr":100.0,"ttr":999.0,"rssi":-127.0,"tput":0.0}
-
-        d = antenna_scores_input[ant]
-        if mode == "BURN":
-            # usa bloco 0 (sem bloco) ou bloco 3 (3x60) como referência
-            ref_blk = cons.get("block3_plr_med") or cons.get("block0_plr_med")
-            if ref_blk is not None and not math.isnan(ref_blk):
-                d["plr"] = min(d["plr"], ref_blk)
-            ref_tput = cons.get("block3_tput_med") or cons.get("block0_tput_med")
-            if ref_tput is not None and not math.isnan(ref_tput):
-                d["tput"] = max(d["tput"], ref_tput)
-        elif mode == "WALK":
-            ttr = cons.get("ttr_median_s", float("nan"))
-            if not math.isnan(ttr): d["ttr"] = min(d["ttr"], ttr)
-            rssi = cons.get("rssi_p10", -127.0)
-            if rssi > d["rssi"]: d["rssi"] = rssi
-        elif mode == "CLOCK":
-            # RSSI P10 consolidado de todos os markers
-            all_rssi = [v["rssi_p10_med"] for v in (cons.get("markers") or {}).values()
-                        if v.get("rssi_p10_med") is not None]
-            if all_rssi:
-                med_rssi = _median(all_rssi)
-                if med_rssi > d["rssi"]: d["rssi"] = med_rssi
-
-    scores = compute_score(antenna_scores_input, weights) if antenna_scores_input else {}
-    if scores:
-        print("\n  Scores RF:")
-        for ant, sc in sorted(scores.items(), key=lambda x: x[1], reverse=True):
-            print(f"    {ant}: {sc:.1f} pts")
-
-    # Exporta summary.csv
-    report_dir = campaign_dir / "report"
-    report_dir.mkdir(exist_ok=True)
-
-    summary_path = report_dir / "summary.csv"
-    with open(summary_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["antenna","score","plr","ttr_s","rssi_p10","tput_bps"])
-        for ant, d in antenna_scores_input.items():
-            w.writerow([ant, scores.get(ant,""), d["plr"], d["ttr"], d["rssi"], d["tput"]])
-    print(f"  Summary CSV: {summary_path}")
-
-    results = {
-        "runs": runs,
-        "env_shift": env_shift,
-        "aggregated": aggregated,
-    }
-
-    render_report(campaign_dir, results, scores, report_dir / "report.html")
-    print(f"\nConcluído. Abrir: {report_dir / 'report.html'}")
 
 # ══════════════════════════════════════════════════════════════
 #  MAIN
 # ══════════════════════════════════════════════════════════════
 def _parse_weights(s: str) -> dict:
-    w = {"plr": 0.30, "ttr": 0.25, "rssi": 0.25, "tput": 0.20}
-    if not s: return w
-    for part in s.split(","):
+    w = dict(DEFAULT_WEIGHTS)
+    for part in (s or "").split(","):
         if "=" in part:
             k, v = part.split("=", 1)
             if k.strip() in w:
@@ -718,8 +769,9 @@ def _parse_weights(s: str) -> dict:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Parser offline RF Field Validator N2.1")
-    ap.add_argument("campaign_dir", help="Diretório da campanha (contém logs/)")
-    ap.add_argument("--weights", default="", help="Pesos: plr=0.30,ttr=0.25,rssi=0.25,tput=0.20")
+    ap.add_argument("campaign_dir",
+                    help="Pasta com os CSVs (ou com subpasta logs/)")
+    ap.add_argument("--weights", default="",
+                    help="Ex: plr=0.30,ttr=0.25,rssi=0.25,tput=0.20")
     args = ap.parse_args()
-
     run_pipeline(Path(args.campaign_dir), _parse_weights(args.weights))
