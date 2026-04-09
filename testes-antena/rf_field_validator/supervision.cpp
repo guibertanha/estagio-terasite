@@ -2,6 +2,7 @@
 #include "config.h"
 #include "csv_log.h"
 #include "state_machine.h"
+#include "weblog.h"
 #include <WiFi.h>
 
 // ── Estado ────────────────────────────────────────────────────
@@ -48,9 +49,16 @@ void supervision_task(void* param) {
             if (running) {
                 if (link_was_up && !link_now) {
                     csv_write_event("LINK_DOWN");
+                    weblog_println("[WARN] LINK_DOWN — Wi-Fi desconectado durante run");
                 } else if (!link_was_up && link_now) {
                     csv_write_event("LINK_UP");
+                    weblog_println("[OK] LINK_UP — Wi-Fi reconectado");
                 }
+            } else {
+                if (link_was_up && !link_now)
+                    weblog_println("[WARN] LINK_DOWN — Wi-Fi desconectado");
+                else if (!link_was_up && link_now)
+                    weblog_println("[OK] LINK_UP — Wi-Fi reconectado");
             }
             link_was_up = link_now;
         }
@@ -62,11 +70,14 @@ void supervision_task(void* param) {
                             s == State::RUNNING_BURN  || s == State::RUNNING_BURN3);
             if (running) {
                 csv_write_event("BROWNOUT_WARNING");
+                weblog_printf("[WARN] BROWNOUT — V_IN=%u mV (limite %d mV)\n",
+                              _vin_mv, VIN_BROWNOUT_MV);
 #if BROWNOUT_AUTO_STOP
-                // Aciona STOP seguro: a task de log faz o flush e encerra o arquivo
                 sm_cmd_stop();
-                Serial.println("[SUP] BROWNOUT — STOP automatico acionado");
+                weblog_println("[WARN] BROWNOUT — STOP automatico acionado");
 #endif
+            } else {
+                weblog_printf("[WARN] BROWNOUT — V_IN=%u mV\n", _vin_mv);
             }
             brownout_flagged = true;
         }

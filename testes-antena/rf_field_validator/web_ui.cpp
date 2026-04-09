@@ -1,8 +1,9 @@
 #include "web_ui.h"
 #include "config.h"
 #include "state_machine.h"
-#include "csv_log.h"   // inclui g_flush_incomplete
+#include "csv_log.h"
 #include "supervision.h"
+#include "weblog.h"
 #include <WebServer.h>
 #include <LittleFS.h>
 #include <WiFi.h>
@@ -118,6 +119,21 @@ a.del:hover{text-decoration:underline}
     <button style="width:auto;padding:8px 14px" onclick="sendMark()">Marcar</button>
   </div>
   <div id="mm" class="msg"></div>
+</div>
+
+<div class="card">
+  <h3>Terminal <span style="font-weight:normal;font-size:.85em">(&#xFA0;ltimas mensagens do sistema)</span></h3>
+  <div id="term" style="background:#010409;border:1px solid #21262d;border-radius:4px;
+       padding:8px;height:180px;overflow-y:auto;font-size:.75em;line-height:1.5;
+       color:#3fb950;word-break:break-all" aria-live="polite">
+    <span style="color:#484f58">Aguardando...</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+    <label style="font-size:.76em;color:#8b949e;display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="term-auto" checked> auto-scroll
+    </label>
+    <button style="width:auto;padding:4px 10px;font-size:.76em" onclick="clearTerm()">Limpar</button>
+  </div>
 </div>
 
 <div class="card">
@@ -319,8 +335,44 @@ function updateStatus(){
   }).catch(function(){});
 }
 
+// ── Terminal web ──────────────────────────────────────────────
+var _termN = 0;
+function _termColor(s){
+  if(s.indexOf('[ERR]')>=0||s.indexOf('[FATAL]')>=0||s.indexOf('BROWNOUT')>=0)
+    return '#f85149';
+  if(s.indexOf('[WARN]')>=0||s.indexOf('INCOMPLETE')>=0||s.indexOf('LINK_DOWN')>=0)
+    return '#d29922';
+  if(s.indexOf('[OK]')>=0||s.indexOf('LINK_UP')>=0)
+    return '#3fb950';
+  if(s.indexOf('[BTN]')>=0||s.indexOf('[NTP]')>=0||s.indexOf('[Web]')>=0)
+    return '#58a6ff';
+  return '#c9d1d9';
+}
+function clearTerm(){
+  document.getElementById('term').innerHTML=
+    '<span style="color:#484f58">Buffer limpo.</span>';
+}
+function updateTerm(){
+  fetch('/weblog').then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.lines||d.n===_termN)return;
+    _termN=d.n;
+    var el=document.getElementById('term');
+    var html='';
+    d.lines.forEach(function(l){
+      var col=_termColor(l);
+      html+='<div style="color:'+col+'">'+
+        l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+    });
+    el.innerHTML=html||'<span style="color:#484f58">Vazio.</span>';
+    if(document.getElementById('term-auto').checked)
+      el.scrollTop=el.scrollHeight;
+  }).catch(function(){});
+}
+
 updateStatus();
 setInterval(updateStatus,3000);
+updateTerm();
+setInterval(updateTerm,3000);
 </script>
 </body></html>
 )HTML";
@@ -550,6 +602,13 @@ static void _handle_delete() {
     _json_reply(true, ("Apagado: " + fname).c_str());
 }
 
+// GET /weblog → JSON com buffer circular de log
+static void _handle_weblog() {
+    static char _wlog_buf[WEBLOG_LINES * (WEBLOG_LINE_LEN + 4) + 32];
+    weblog_to_json(_wlog_buf, sizeof(_wlog_buf));
+    _srv.send(200, "application/json", _wlog_buf);
+}
+
 // GET /download?f=<nome> → stream do CSV
 static void _handle_download() {
     String fname = _safe_fname(_srv.arg("f"));
@@ -596,7 +655,7 @@ static void _button_poll() {
             long_fired = true;
             const char* err = sm_cmd_stop();
             if (!err) {
-                Serial.println("[BTN] STOP (long press)");
+                weblog_println("[BTN] STOP (long press)");
                 // Feedback: 6 piscadas rápidas
                 for (int i = 0; i < 6; i++) {
                     digitalWrite(PIN_LED, i % 2);
@@ -621,7 +680,7 @@ static void _button_poll() {
                 if (!err) {
                     _try_ntp_quick();
                     digitalWrite(PIN_LED, HIGH);
-                    Serial.printf("[BTN] START_WALK — %s\n",
+                    weblog_printf("[BTN] START_WALK — %s\n",
                                   csv_current_filename().c_str());
                     for (int i = 0; i < 4; i++) {
                         digitalWrite(PIN_LED, i % 2);
@@ -630,8 +689,7 @@ static void _button_poll() {
                     digitalWrite(PIN_LED, HIGH);
                 }
             } else if (_is_running()) {
-                // Toque curto durante run → feedback de aviso (não para o run)
-                Serial.println("[BTN] Segure para STOP");
+                weblog_println("[BTN] Segure para STOP");
                 for (int i = 0; i < 2; i++) {
                     digitalWrite(PIN_LED, LOW);
                     delay(100);
@@ -654,6 +712,7 @@ void web_ui_init() {
 
     _srv.on("/",        HTTP_GET,  _handle_root);
     _srv.on("/status",  HTTP_GET,  _handle_status);
+    _srv.on("/weblog",  HTTP_GET,  _handle_weblog);
     _srv.on("/logs",    HTTP_GET,  _handle_logs);
     _srv.on("/download",HTTP_GET,  _handle_download);
     _srv.on("/delete",  HTTP_GET,  _handle_delete);
@@ -661,7 +720,7 @@ void web_ui_init() {
 
     _srv.begin();
     _web_started = true;
-    Serial.printf("[Web] Painel em http://%s/ (porta %d)\n",
+    weblog_printf("[Web] Painel em http://%s/ (porta %d)\n",
                   WiFi.localIP().toString().c_str(), WEB_UI_PORT);
 }
 

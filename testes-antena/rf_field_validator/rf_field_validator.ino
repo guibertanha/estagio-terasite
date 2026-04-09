@@ -36,6 +36,7 @@
 #include "profile_b.h"
 #include "profile_a.h"
 #include "web_ui.h"
+#include "weblog.h"
 
 // ── Task handles ─────────────────────────────────────────────
 static TaskHandle_t _task_log    = nullptr;
@@ -61,7 +62,7 @@ static void _try_ntp() {
         time_t now = mktime(&tm_info);
         csv_write_epoch_anchor((uint32_t)now);
         g_epoch_anchored = true;
-        Serial.printf("[NTP] EPOCH_ANCHOR=%lu\n", (unsigned long)now);
+        weblog_printf("[NTP] EPOCH_ANCHOR=%lu\n", (unsigned long)now);
     }
 }
 
@@ -89,9 +90,9 @@ static void _task_log_fn(void* p) {
             csv_close_run(false);
             RunContext* ctx = sm_ctx();
             sm_cmd_config(ctx->antenna, ctx->location, ctx->condition);
-            Serial.println("[OK] Run encerrado. READY para novo START_*");
+            weblog_println("[OK] Run encerrado. READY para novo START_*");
             if (g_flush_incomplete) {
-                Serial.println("[WARN] FLUSH_INCOMPLETE — verifique o CSV");
+                weblog_println("[WARN] FLUSH_INCOMPLETE — verifique o CSV");
             }
             digitalWrite(PIN_LED, LOW);
         }
@@ -119,8 +120,8 @@ static void _process_cli(const char* line) {
             return;
         }
         const char* err = sm_cmd_config(ant, loc, cnd);
-        if (err) Serial.printf("[ERR] %s\n", err);
-        else     Serial.printf("[OK] CONFIG aceito: %s %s %s\n", ant, loc, cnd);
+        if (err) weblog_printf("[ERR] %s\n", err);
+        else     weblog_printf("[OK] CONFIG aceito: %s %s %s\n", ant, loc, cnd);
         return;
     }
 
@@ -129,11 +130,11 @@ static void _process_cli(const char* line) {
         char* flag = strtok(nullptr, " \t\r\n");
         bool cold = (flag && strcasecmp(flag, "--cold") == 0);
         const char* err = sm_cmd_start_walk(cold);
-        if (err) Serial.printf("[ERR] %s\n", err);
+        if (err) weblog_printf("[ERR] %s\n", err);
         else {
             if (!g_epoch_anchored) _try_ntp();
             digitalWrite(PIN_LED, HIGH);
-            Serial.printf("[OK] START_WALK%s — arquivo: %s\n",
+            weblog_printf("[OK] START_WALK%s — arquivo: %s\n",
                           cold ? " (cold)" : "",
                           csv_current_filename().c_str());
         }
@@ -143,11 +144,11 @@ static void _process_cli(const char* line) {
     // ── START_CLOCK ───────────────────────────────────────────
     if (strcasecmp(tok, "START_CLOCK") == 0) {
         const char* err = sm_cmd_start_clock();
-        if (err) Serial.printf("[ERR] %s\n", err);
+        if (err) weblog_printf("[ERR] %s\n", err);
         else {
             if (!g_epoch_anchored) _try_ntp();
             digitalWrite(PIN_LED, HIGH);
-            Serial.printf("[OK] START_CLOCK — arquivo: %s\n",
+            weblog_printf("[OK] START_CLOCK — arquivo: %s\n",
                           csv_current_filename().c_str());
         }
         return;
@@ -158,11 +159,11 @@ static void _process_cli(const char* line) {
         char* flag = strtok(nullptr, " \t\r\n");
         bool three = (flag && strcasecmp(flag, "3x60") == 0);
         const char* err = sm_cmd_start_burn(three);
-        if (err) Serial.printf("[ERR] %s\n", err);
+        if (err) weblog_printf("[ERR] %s\n", err);
         else {
             if (!g_epoch_anchored) _try_ntp();
             digitalWrite(PIN_LED, HIGH);
-            Serial.printf("[OK] START_BURN%s — arquivo: %s\n",
+            weblog_printf("[OK] START_BURN%s — arquivo: %s\n",
                           three ? " 3x60" : "",
                           csv_current_filename().c_str());
         }
@@ -172,18 +173,18 @@ static void _process_cli(const char* line) {
     // ── MARK ──────────────────────────────────────────────────
     if (strcasecmp(tok, "MARK") == 0) {
         char* label = strtok(nullptr, " \t\r\n");
-        if (!label) { Serial.println("[ERR] Uso: MARK <label>"); return; }
+        if (!label) { weblog_println("[ERR] Uso: MARK <label>"); return; }
         const char* err = sm_cmd_mark(label);
-        if (err) Serial.printf("[ERR] %s\n", err);
-        else     Serial.printf("[OK] MARK=%s\n", label);
+        if (err) weblog_printf("[ERR] %s\n", err);
+        else     weblog_printf("[OK] MARK=%s\n", label);
         return;
     }
 
     // ── STOP ──────────────────────────────────────────────────
     if (strcasecmp(tok, "STOP") == 0) {
         const char* err = sm_cmd_stop();
-        if (err) Serial.printf("[ERR] %s\n", err);
-        else     Serial.println("[OK] Flush em andamento...");
+        if (err) weblog_printf("[ERR] %s\n", err);
+        else     weblog_println("[OK] Flush em andamento...");
         return;
     }
 
@@ -200,23 +201,23 @@ static void _process_cli(const char* line) {
         int8_t rssi = -127;
         if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) rssi = ap_info.rssi;
 
-        Serial.printf("Estado     : %s\n", state_str[(int)st]);
-        Serial.printf("CONFIG     : ant=%s loc=%s cond=%s\n",
+        weblog_printf("Estado     : %s\n", state_str[(int)st]);
+        weblog_printf("CONFIG     : ant=%s loc=%s cond=%s\n",
                       ctx->antenna, ctx->location, ctx->condition);
-        Serial.printf("Run #      : R%02u | amostras=%lu\n",
+        weblog_printf("Run #      : R%02u | amostras=%lu\n",
                       ctx->run_number, (unsigned long)ctx->samples);
-        Serial.printf("Uptime     : %lu s\n", millis() / 1000);
-        Serial.printf("RSSI link  : %d dBm\n", (int)rssi);
-        Serial.printf("Temperatura: %.1f C\n", sup_temp_c());
-        Serial.printf("V_IN       : %u mV\n", sup_vin_mv());
-        Serial.printf("Flash livre: %lu KB\n", (unsigned long)csv_free_kb());
-        Serial.printf("Ring buffer: %u linhas pendentes\n", csv_ring_count());
-        Serial.printf("EPOCH NTP  : %s\n", g_epoch_anchored ? "ok" : "nao ancorado");
-        Serial.printf("WiFi       : %s\n", WiFi.status() == WL_CONNECTED ? "conectado" : "desconectado");
+        weblog_printf("Uptime     : %lu s\n", millis() / 1000);
+        weblog_printf("RSSI link  : %d dBm\n", (int)rssi);
+        weblog_printf("Temperatura: %.1f C\n", sup_temp_c());
+        weblog_printf("V_IN       : %u mV\n", sup_vin_mv());
+        weblog_printf("Flash livre: %lu KB\n", (unsigned long)csv_free_kb());
+        weblog_printf("Ring buffer: %u linhas pendentes\n", csv_ring_count());
+        weblog_printf("EPOCH NTP  : %s\n", g_epoch_anchored ? "ok" : "nao ancorado");
+        weblog_printf("WiFi       : %s\n", WiFi.status() == WL_CONNECTED ? "conectado" : "desconectado");
         if (g_flush_incomplete)
-            Serial.println("[WARN] FLUSH_INCOMPLETE no ultimo run");
+            weblog_println("[WARN] FLUSH_INCOMPLETE no ultimo run");
         if (st != State::IDLE && st != State::READY)
-            Serial.printf("Arquivo    : %s\n", csv_current_filename().c_str());
+            weblog_printf("Arquivo    : %s\n", csv_current_filename().c_str());
         return;
     }
 
@@ -239,15 +240,15 @@ static void _process_cli(const char* line) {
     // ── EPOCH <unix_ts> ───────────────────────────────────────
     if (strcasecmp(tok, "EPOCH") == 0) {
         char* ts_str = strtok(nullptr, " \t\r\n");
-        if (!ts_str) { Serial.println("[ERR] Uso: EPOCH <unix_timestamp>"); return; }
+        if (!ts_str) { weblog_println("[ERR] Uso: EPOCH <unix_timestamp>"); return; }
         uint32_t ts = (uint32_t)strtoul(ts_str, nullptr, 10);
         csv_write_epoch_anchor(ts);
         g_epoch_anchored = true;
-        Serial.printf("[OK] EPOCH_ANCHOR=%lu (manual)\n", (unsigned long)ts);
+        weblog_printf("[OK] EPOCH_ANCHOR=%lu (manual)\n", (unsigned long)ts);
         return;
     }
 
-    Serial.printf("[ERR] Comando desconhecido: %s\n", tok);
+    weblog_printf("[ERR] Comando desconhecido: %s\n", tok);
 }
 
 // ── Leitura incremental do Serial ────────────────────────────
@@ -334,16 +335,17 @@ void setup() {
         Serial.println("       Use START_WALK --cold para operar sem WiFi.");
     }
 
-    // ── Ring buffer + state machine ───────────────────────────
+    // ── Ring buffer + state machine + weblog ─────────────────
     csv_ring_init();
     sm_init();
     supervision_init();
+    weblog_init();
 
     // ── Interface Web (só se WiFi disponível no boot) ─────────
     if (WiFi.status() == WL_CONNECTED) {
         web_ui_init();
     } else {
-        Serial.println("[Web] Painel indisponivel — sera iniciado ao reconectar.");
+        weblog_println("[Web] Painel indisponivel — sera iniciado ao reconectar.");
     }
 
     // ── Tasks FreeRTOS ────────────────────────────────────────
@@ -352,7 +354,7 @@ void setup() {
     xTaskCreatePinnedToCore(profile_a_task,   "profA", 6144, nullptr, 3, &_task_profa, 1);
     xTaskCreatePinnedToCore(_task_log_fn,     "log",   4096, nullptr, 1, &_task_log,   1);
 
-    Serial.println("[OK] Tasks iniciadas. IDLE — aguardando CONFIG.");
+    weblog_println("[OK] Tasks iniciadas. IDLE — aguardando CONFIG.");
 }
 
 // ── loop() — CLI, web server, heartbeat e reconexão WiFi ─────
