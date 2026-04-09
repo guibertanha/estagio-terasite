@@ -59,6 +59,3 @@ const char* sm_cmd_stop();
 
 // Chamada pelo runner quando 3x60 encerra automaticamente
 void sm_finish_burn3();
-
-// Chamada pela supervision task
-void sm_tick_supervision();

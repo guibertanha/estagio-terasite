@@ -302,13 +302,19 @@ def consolidate_clock(agg_list: list) -> dict:
 # ══════════════════════════════════════════════════════════════
 DEFAULT_WEIGHTS = {"plr": 0.30, "ttr": 0.25, "rssi": 0.25, "tput": 0.20}
 
-def compute_scores(antenna_metrics: dict, weights: dict) -> dict:
+# Valor sentinela que indica "sem dados" (nunca houve WALK para medir TTR)
+_TTR_NODATA = 999.0
+_TTR_NODATA_THRESHOLD = 998.0
+
+def compute_scores(antenna_metrics: dict, weights: dict) -> tuple:
     """
     antenna_metrics: {ant: {rssi_p10, tput_median, plr_median, ttr_median_s}}
-    Retorna {ant: score_0_100}
+    Retorna (scores_dict, effective_weights_dict) onde:
+      - scores_dict = {ant: score_0_100}
+      - effective_weights_dict = pesos efetivamente usados (TTR excluído se ausente)
     """
     if not antenna_metrics:
-        return {}
+        return {}, weights
 
     def _norm_min(vals):  # menor = melhor
         lo, hi = min(vals.values()), max(vals.values())
@@ -320,19 +326,41 @@ def compute_scores(antenna_metrics: dict, weights: dict) -> dict:
         if hi == lo: return {k: 1.0 for k in vals}
         return {k: (v - lo) / (hi - lo) for k, v in vals.items()}
 
+    # Verifica se alguma antena tem dados de TTR (requer WALK)
+    ttr_vals = {a: d.get("ttr_median_s", _TTR_NODATA) for a, d in antenna_metrics.items()}
+    has_ttr = any(v < _TTR_NODATA_THRESHOLD for v in ttr_vals.values())
+
     plr_n  = _norm_min({a: d.get("plr_median",  100.0) for a, d in antenna_metrics.items()})
-    ttr_n  = _norm_min({a: d.get("ttr_median_s", 999.0) for a, d in antenna_metrics.items()})
     rssi_n = _norm_max({a: d.get("rssi_p10",    -127.0) for a, d in antenna_metrics.items()})
     tput_n = _norm_max({a: d.get("tput_median",    0.0) for a, d in antenna_metrics.items()})
 
+    # Se não há dados de TTR, redistribui o peso para os demais eixos proporcionalmente
+    if has_ttr:
+        ttr_n = _norm_min(ttr_vals)
+        eff_weights = dict(weights)
+    else:
+        ttr_n = {a: 0.0 for a in antenna_metrics}
+        w_ttr = weights.get("ttr", 0.25)
+        total_rest = sum(weights.get(k, 0) for k in ("plr", "rssi", "tput"))
+        if total_rest > 0:
+            factor = (total_rest + w_ttr) / total_rest
+        else:
+            factor = 1.0
+        eff_weights = {
+            "plr":  round(weights.get("plr",  0.30) * factor, 4),
+            "ttr":  0.0,
+            "rssi": round(weights.get("rssi", 0.25) * factor, 4),
+            "tput": round(weights.get("tput", 0.20) * factor, 4),
+        }
+
     scores = {}
     for ant in antenna_metrics:
-        s = (weights.get("plr",  0.30) * plr_n[ant]  +
-             weights.get("ttr",  0.25) * ttr_n[ant]  +
-             weights.get("rssi", 0.25) * rssi_n[ant] +
-             weights.get("tput", 0.20) * tput_n[ant])
+        s = (eff_weights.get("plr",  0.30) * plr_n[ant]  +
+             eff_weights.get("ttr",  0.25) * ttr_n[ant]  +
+             eff_weights.get("rssi", 0.25) * rssi_n[ant] +
+             eff_weights.get("tput", 0.20) * tput_n[ant])
         scores[ant] = round(s * 100, 1)
-    return scores
+    return scores, eff_weights
 
 # ══════════════════════════════════════════════════════════════
 #  7. PIPELINE PRINCIPAL
@@ -465,8 +493,10 @@ def run_pipeline(campaign_dir: Path, weights: dict):
                 d["rssi_p10"] = max(d["rssi_p10"], _median(marker_rssi))
 
     # Score RF
-    scores = compute_scores(antenna_metrics, weights)
-    print(f"\nScores RF:")
+    scores, eff_weights = compute_scores(antenna_metrics, weights)
+    print(f"\nScores RF (pesos: PLR={eff_weights['plr']:.0%} TTR={eff_weights['ttr']:.0%} RSSI={eff_weights['rssi']:.0%} Tput={eff_weights['tput']:.0%}):")
+    if eff_weights.get("ttr", 0) == 0:
+        print("  [INFO] TTR excluido do score (sem dados de WALK)")
     for ant, sc in sorted(scores.items(), key=lambda x: x[1], reverse=True):
         bar = "█" * int(sc / 5)
         print(f"  {ant:6s}: {sc:5.1f}  {bar}")
@@ -486,7 +516,7 @@ def run_pipeline(campaign_dir: Path, weights: dict):
 
     # Relatório HTML
     out_html = report_dir / "report.html"
-    render_report(out_html, campaign_dir.name, runs, scores,
+    render_report(out_html, campaign_dir.name, runs, scores, eff_weights,
                   antenna_metrics, consolidated, raw_samples)
     print(f"Relatório:   {out_html}")
     print(f"\nAbra o arquivo no navegador para ver os gráficos.")
@@ -502,7 +532,7 @@ def _nan_to_none(v):
         return v
 
 def render_report(out_path: Path, campaign_name: str, runs: list,
-                  scores: dict, antenna_metrics: dict,
+                  scores: dict, eff_weights: dict, antenna_metrics: dict,
                   consolidated: dict, raw_samples: dict):
 
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -776,7 +806,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
   <div class="card">
     {score_badges}
     <p style="font-size:10px;color:#484f58;margin-top:8px">
-      Score = 30% PLR + 25% TTR + 25% RSSI P10 + 20% Throughput (min-max)
+      Score = {eff_weights['plr']:.0%} PLR + {eff_weights['ttr']:.0%} TTR + {eff_weights['rssi']:.0%} RSSI P10 + {eff_weights['tput']:.0%} Throughput (min-max)
     </p>
   </div>
   <div class="card" style="display:flex;flex-direction:column;align-items:center">

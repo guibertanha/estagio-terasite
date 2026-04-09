@@ -1,7 +1,7 @@
 #include "web_ui.h"
 #include "config.h"
 #include "state_machine.h"
-#include "csv_log.h"
+#include "csv_log.h"   // inclui g_flush_incomplete
 #include "supervision.h"
 #include <WebServer.h>
 #include <LittleFS.h>
@@ -9,8 +9,9 @@
 #include <esp_wifi.h>
 #include <time.h>
 
-// ── Estado global de NTP ──────────────────────────────────────
-bool g_epoch_anchored = false;
+// ── Estado global ─────────────────────────────────────────────
+bool g_epoch_anchored  = false;
+static bool _web_started = false;   // garante que web_ui_init só roda uma vez
 
 // ── Servidor HTTP na porta 80 ─────────────────────────────────
 static WebServer _srv(WEB_UI_PORT);
@@ -48,6 +49,8 @@ button:hover{background:#30363d}
 .bs:hover{background:#238636}
 .bx{background:#3d1616;color:#f85149;border-color:#6e2020}
 .bx:hover{background:#6e2020}
+.bx-arm{background:#6e2020;color:#fff;border-color:#da3633;animation:pulse .4s infinite alternate}
+@keyframes pulse{from{opacity:1}to{opacity:.7}}
 .bg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px}
 .li{display:flex;justify-content:space-between;align-items:center;padding:5px 2px;border-bottom:1px solid #21262d;font-size:.83em}
 .li:last-child{border:none}
@@ -59,19 +62,24 @@ a.del:hover{text-decoration:underline}
 .msg{padding:5px 9px;border-radius:4px;margin-top:7px;font-size:.82em;display:none}
 .mo{background:#1a4731;color:#3fb950}
 .me{background:#3d1616;color:#f85149}
+.mw{background:#2d2016;color:#d29922}
+.warn-banner{display:none;padding:6px 10px;background:#2d2016;border:1px solid #d29922;border-radius:4px;color:#d29922;font-size:.82em;margin-bottom:8px}
 </style>
 </head>
 <body>
-<h1>&#x1F4F6; RF Field Validator N2.1</h1>
+<h1>&#x1F4F6; RF Field Validator N3.0</h1>
 
 <div class="card">
   <div id="sb" class="si">IDLE</div>
+  <div id="warn-banner" class="warn-banner">&#x26A0; FLUSH_INCOMPLETE — dados podem estar faltando no CSV</div>
   <div id="timer-row" class="sr" style="display:none"><span class="sl">Tempo</span><span class="sv" id="timer" style="font-size:1.1em;color:#3fb950;letter-spacing:.05em">00:00</span></div>
   <div id="block-row" class="sr" style="display:none"><span class="sl">Bloco</span><span class="sv" id="block-ind" style="color:#d29922">-</span></div>
   <div class="sr"><span class="sl">Config</span><span class="sv" id="cfg">-/-/-</span></div>
   <div class="sr"><span class="sl">Arquivo</span><span class="sv" id="fname" style="font-size:.75em">-</span></div>
   <div class="sr"><span class="sl">RSSI</span><span class="sv" id="rssi">--- dBm</span></div>
+  <div class="sr"><span class="sl">Temp</span><span class="sv" id="temp">-- °C</span></div>
   <div class="sr"><span class="sl">Amostras</span><span class="sv" id="samp">0</span></div>
+  <div class="sr"><span class="sl">Ring pendente</span><span class="sv" id="ring">0 linhas</span></div>
   <div class="sr"><span class="sl">V_IN</span><span class="sv" id="vin">--- mV</span></div>
   <div class="sr"><span class="sl">Flash livre</span><span class="sv" id="fl">--- KB</span></div>
   <div class="sr"><span class="sl">NTP</span><span class="sv" id="ntp">---</span></div>
@@ -98,7 +106,7 @@ a.del:hover{text-decoration:underline}
   <div class="bg">
     <button class="bs" onclick="cmd('start_burn')">BURN</button>
     <button class="bs" onclick="cmd('start_burn3')">BURN 3&#xD7;60</button>
-    <button class="bx" onclick="cmd('stop')">&#x23F9; STOP</button>
+    <button id="btn-stop" class="bx" onclick="armStop()">&#x23F9; STOP</button>
   </div>
   <div id="rm" class="msg"></div>
 </div>
@@ -125,19 +133,17 @@ a.del:hover{text-decoration:underline}
 var SC={IDLE:'si',READY:'sr2',RUNNING_WALK:'sg',RUNNING_CLOCK:'sg',
         RUNNING_BURN:'sg',RUNNING_BURN3:'sg',FLUSHING:'sy'};
 
-var _timerBase=0, _timerRef=0, _timerInterval=null;
+var _timerBase=0,_timerRef=0,_timerInterval=null;
 function fmtTime(ms){
-  var s=Math.floor(ms/1000), m=Math.floor(s/60);
-  s=s%60;
-  return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  var s=Math.floor(ms/1000),m=Math.floor(s/60);s=s%60;
+  return(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
 }
-function startTimer(elapsed_ms){
-  _timerBase=elapsed_ms; _timerRef=Date.now();
+function startTimer(e){
+  _timerBase=e;_timerRef=Date.now();
   document.getElementById('timer-row').style.display='flex';
-  if(_timerInterval) clearInterval(_timerInterval);
+  if(_timerInterval)clearInterval(_timerInterval);
   _timerInterval=setInterval(function(){
-    document.getElementById('timer').textContent=
-      fmtTime(_timerBase+(Date.now()-_timerRef));
+    document.getElementById('timer').textContent=fmtTime(_timerBase+(Date.now()-_timerRef));
   },1000);
 }
 function stopTimer(){
@@ -146,11 +152,11 @@ function stopTimer(){
   document.getElementById('timer').textContent='00:00';
 }
 
-function msg(id,ok,t){
+function msg(id,ok,t,warn){
   var e=document.getElementById(id);
-  e.className='msg '+(ok?'mo':'me');
+  e.className='msg '+(warn?'mw':ok?'mo':'me');
   e.textContent=t;e.style.display='block';
-  setTimeout(function(){e.style.display='none';},3000);
+  setTimeout(function(){e.style.display='none';},3500);
 }
 
 function post(b,cb){
@@ -161,6 +167,28 @@ function post(b,cb){
 }
 
 function cmd(a){post('action='+a,function(r){msg('rm',r.ok,r.msg);});}
+
+// ── STOP com confirmação de 2 toques ─────────────────────────
+var _stopArmed=false,_stopTimer=null;
+function armStop(){
+  var btn=document.getElementById('btn-stop');
+  if(!_stopArmed){
+    _stopArmed=true;
+    btn.textContent='Toque de novo para CONFIRMAR';
+    btn.className='bx bx-arm';
+    _stopTimer=setTimeout(function(){
+      _stopArmed=false;
+      btn.textContent='&#x23F9; STOP';
+      btn.className='bx';
+    },3000);
+  } else {
+    clearTimeout(_stopTimer);
+    _stopArmed=false;
+    btn.textContent='&#x23F9; STOP';
+    btn.className='bx';
+    post('action=stop',function(r){msg('rm',r.ok,r.msg);});
+  }
+}
 
 function sendConfig(){
   var a=document.getElementById('ant').value.trim();
@@ -196,16 +224,14 @@ function loadLogs(){
     }
     document.getElementById('ll').innerHTML=h;
   }).catch(function(){
-    document.getElementById('ll').innerHTML=
-      '<em style="color:#f85149">Erro ao listar logs.</em>';
+    document.getElementById('ll').innerHTML='<em style="color:#f85149">Erro ao listar logs.</em>';
   });
 }
 
 function delFile(enc){
-  if(!confirm('Apagar '+decodeURIComponent(enc)+'?')) return;
+  if(!confirm('Apagar '+decodeURIComponent(enc)+'?'))return;
   fetch('/delete?f='+enc).then(function(r){return r.json();}).then(function(d){
-    if(d.ok) loadLogs();
-    else alert('Erro: '+d.msg);
+    if(d.ok)loadLogs();else alert('Erro: '+d.msg);
   }).catch(function(){alert('Erro de rede');});
 }
 
@@ -263,14 +289,28 @@ function updateStatus(){
     document.getElementById('cfg').textContent=d.cfg;
     document.getElementById('fname').textContent=d.fname||'-';
     document.getElementById('rssi').textContent=d.rssi+' dBm';
+    document.getElementById('temp').textContent=d.temp_c!=null?d.temp_c.toFixed(1)+' \u00b0C':'--';
     document.getElementById('samp').textContent=d.samples;
-    document.getElementById('vin').textContent=d.vin_mv+' mV';
-    document.getElementById('fl').textContent=d.flash_kb+' KB';
+    document.getElementById('ring').textContent=d.ring+' linhas';
+
+    // V_IN — sem cor especial (ADC pode não estar conectado)
+    document.getElementById('vin').textContent=d.vin_mv>0?d.vin_mv+' mV':'-- (sem sensor)';
+
+    // Flash — vermelho quando abaixo do threshold de aviso
+    var flEl=document.getElementById('fl');
+    flEl.textContent=d.flash_kb+' KB';
+    flEl.style.color=d.flash_warn?'#f85149':'#e6edf3';
+
     document.getElementById('ntp').textContent=d.ntp?'ancorado':'nao ancorado';
+
+    // Banner de FLUSH_INCOMPLETE
+    document.getElementById('warn-banner').style.display=d.flush_warn?'block':'none';
+
     var running=d.elapsed_ms>0;
     if(running){startTimer(d.elapsed_ms);}
     else if(_wasRunning){stopTimer();}
     _wasRunning=running;
+
     var blkRow=document.getElementById('block-row');
     if(d.state==='RUNNING_BURN3'){
       blkRow.style.display='flex';
@@ -361,15 +401,20 @@ static void _handle_status() {
 
     uint32_t elapsed_ms = _is_running() ? millis() - ctx->start_ms : 0;
 
-    char buf[380];
+    uint32_t free_kb = csv_free_kb();
+    char buf[480];
     snprintf(buf, sizeof(buf),
         "{\"state\":\"%s\","
         "\"cfg\":\"%s/%s/%s\","
         "\"fname\":\"%s\","
         "\"rssi\":%d,"
+        "\"temp_c\":%.1f,"
         "\"samples\":%lu,"
+        "\"ring\":%u,"
         "\"vin_mv\":%u,"
         "\"flash_kb\":%lu,"
+        "\"flash_warn\":%s,"
+        "\"flush_warn\":%s,"
         "\"ntp\":%s,"
         "\"elapsed_ms\":%lu,"
         "\"block\":%u,"
@@ -378,9 +423,13 @@ static void _handle_status() {
         ctx->antenna, ctx->location, ctx->condition,
         fname.c_str(),
         (int)rssi,
+        sup_temp_c(),
         (unsigned long)ctx->samples,
+        csv_ring_count(),
         sup_vin_mv(),
-        (unsigned long)csv_free_kb(),
+        (unsigned long)free_kb,
+        (free_kb < FS_WARN_KB) ? "true" : "false",
+        g_flush_incomplete ? "true" : "false",
         g_epoch_anchored ? "true" : "false",
         (unsigned long)elapsed_ms,
         ctx->active_block,
@@ -522,38 +571,74 @@ static void _handle_download() {
 }
 
 // ── Botão físico ──────────────────────────────────────────────
+// Comportamento:
+//   READY     → toque curto (< BTN_STOP_HOLD_MS) → START_WALK
+//   RUNNING_* → pressão longa (>= BTN_STOP_HOLD_MS) → STOP
+//              toque curto durante run → feedback LED, ignora (evita STOP acidental)
 #if PIN_BUTTON >= 0
 static void _button_poll() {
-    static bool  was_pressed = false;
-    static uint32_t press_ms = 0;
+    static bool     was_pressed = false;
+    static uint32_t press_ms    = 0;
+    static bool     long_fired  = false;  // evita re-disparo enquanto segura
 
     bool pressed = (digitalRead(PIN_BUTTON) == LOW);
 
     if (pressed && !was_pressed) {
-        press_ms    = millis();
+        press_ms   = millis();
         was_pressed = true;
-    } else if (!pressed && was_pressed) {
+        long_fired  = false;
+    }
+
+    // Disparo de STOP durante pressão mantida (long press)
+    if (pressed && was_pressed && !long_fired) {
+        uint32_t held = millis() - press_ms;
+        if (held >= BTN_STOP_HOLD_MS && _is_running()) {
+            long_fired = true;
+            const char* err = sm_cmd_stop();
+            if (!err) {
+                Serial.println("[BTN] STOP (long press)");
+                // Feedback: 6 piscadas rápidas
+                for (int i = 0; i < 6; i++) {
+                    digitalWrite(PIN_LED, i % 2);
+                    delay(80);
+                }
+            }
+        }
+    }
+
+    // Release do botão
+    if (!pressed && was_pressed) {
         uint32_t held = millis() - press_ms;
         was_pressed   = false;
+
         if (held < 50) return;  // ruído / bounce
 
-        State st = sm_state();
-        if (st == State::READY) {
-            const char* err = sm_cmd_start_walk(false);
-            if (!err) {
-                _try_ntp_quick();
-                digitalWrite(PIN_LED, HIGH);
-                Serial.printf("[BTN] START_WALK — %s\n",
-                              csv_current_filename().c_str());
+        if (!long_fired) {
+            // Toque curto
+            State st = sm_state();
+            if (st == State::READY) {
+                const char* err = sm_cmd_start_walk(false);
+                if (!err) {
+                    _try_ntp_quick();
+                    digitalWrite(PIN_LED, HIGH);
+                    Serial.printf("[BTN] START_WALK — %s\n",
+                                  csv_current_filename().c_str());
+                    for (int i = 0; i < 4; i++) {
+                        digitalWrite(PIN_LED, i % 2);
+                        delay(60);
+                    }
+                    digitalWrite(PIN_LED, HIGH);
+                }
+            } else if (_is_running()) {
+                // Toque curto durante run → feedback de aviso (não para o run)
+                Serial.println("[BTN] Segure para STOP");
+                for (int i = 0; i < 2; i++) {
+                    digitalWrite(PIN_LED, LOW);
+                    delay(100);
+                    digitalWrite(PIN_LED, HIGH);
+                    delay(100);
+                }
             }
-        } else if (_is_running()) {
-            const char* err = sm_cmd_stop();
-            if (!err) Serial.println("[BTN] STOP");
-        }
-        // Feedback: 3 piscadas rápidas
-        for (int i = 0; i < 6; i++) {
-            digitalWrite(PIN_LED, i % 2);
-            delay(80);
         }
     }
 }
@@ -561,6 +646,8 @@ static void _button_poll() {
 
 // ── API pública ───────────────────────────────────────────────
 void web_ui_init() {
+    if (_web_started) return;
+
 #if PIN_BUTTON >= 0
     pinMode(PIN_BUTTON, INPUT_PULLUP);
 #endif
@@ -573,11 +660,21 @@ void web_ui_init() {
     _srv.on("/cmd",     HTTP_POST, _handle_cmd);
 
     _srv.begin();
+    _web_started = true;
     Serial.printf("[Web] Painel em http://%s/ (porta %d)\n",
                   WiFi.localIP().toString().c_str(), WEB_UI_PORT);
 }
 
+// Inicializa o web server se o WiFi subiu após o boot e ainda não foi iniciado.
+// Chamar periodicamente no loop().
+void web_ui_try_init() {
+    if (!_web_started && WiFi.status() == WL_CONNECTED) {
+        web_ui_init();
+    }
+}
+
 void web_ui_handle() {
+    if (!_web_started) return;
     _srv.handleClient();
 #if PIN_BUTTON >= 0
     _button_poll();

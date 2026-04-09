@@ -34,6 +34,8 @@ static void _fill_sup(CsvRow& r) {
 
 void profile_b_task(void* param) {
     static uint32_t seq = 0;
+    // A supervision já emite LINK_DOWN/LINK_UP — profile_b não precisa rastrear.
+    // Mantemos apenas a lógica de cold start (continuar sem Wi-Fi no WALK).
 
     for (;;) {
         State st = sm_state();
@@ -50,20 +52,19 @@ void profile_b_task(void* param) {
 
         // Wi-Fi desconectado durante run
         if (WiFi.status() != WL_CONNECTED) {
-            // cold start permite continuar sem Wi-Fi (só para WALK)
-            if (!sm_ctx()->cold_start) {
-                // emite evento de link caído e continua (não cancela o run)
-                csv_write_event("LINK_DOWN");
+            if (sm_ctx()->cold_start) {
+                // WALK --cold: registra amostra com RSSI=-127, continua sem ping
+                CsvRow r = csv_make_sample(-127, 0, 0.0f, seq++);
+                _fill_sup(r);
+                csv_ring_push(r);
             }
-            CsvRow r = csv_make_sample(-127, 0, 0.0f, seq++);
-            _fill_sup(r);
-            csv_ring_push(r);
+            // Sem cold start: supervision já emitiu LINK_DOWN — só espera o período
             vTaskDelay(pdMS_TO_TICKS(period_ms));
             continue;
         }
 
         IPAddress target = _ping_target();
-        bool ok = Ping.ping(target, 1);
+        bool ok  = Ping.ping(target, 1);
         float lat = ok ? Ping.averageTime() : 0.0f;
 
         CsvRow r = csv_make_sample(_rssi(), ok ? 1 : 0, lat, seq++);

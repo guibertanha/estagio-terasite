@@ -59,6 +59,10 @@ void csv_write_epoch_anchor(uint32_t unix_ts);
 uint16_t csv_flush_batch();
 void     csv_flush_all(uint32_t timeout_ms = 5000);
 
+// Flag setada quando csv_flush_all() encerra com dados ainda na fila.
+// Resetada no início de cada csv_open_run(). Exposta para o painel web.
+extern bool g_flush_incomplete;
+
 // ── Status ───────────────────────────────────────────────────
 String   csv_current_filename();
 uint32_t csv_free_kb();

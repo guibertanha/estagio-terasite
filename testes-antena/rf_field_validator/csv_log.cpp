@@ -16,6 +16,9 @@ static File    _file;
 static bool    _file_open     = false;
 static uint32_t _last_flush_ms = 0;
 
+// Flag de integridade — setada se o flush encerrou com dados na fila
+bool g_flush_incomplete = false;
+
 // ── CRC16 (CCITT-FALSE) ───────────────────────────────────────
 static uint16_t crc16(const uint8_t* data, size_t len) {
     uint16_t crc = 0xFFFF;
@@ -180,6 +183,7 @@ void csv_open_run() {
     // LittleFS já foi montado em setup() — não chamar begin() de novo
     LittleFS.mkdir(FS_BASE_PATH);  // garante que /logs existe (no-op se já existe)
 
+    g_flush_incomplete = false;  // reset da flag no início de cada run
     _build_filename();
 
     if (xSemaphoreTake(_fs_mutex, pdMS_TO_TICKS(1000)) != pdTRUE) return;
@@ -299,6 +303,7 @@ void csv_flush_all(uint32_t timeout_ms) {
     }
     // se ainda há dados na fila após timeout → FLUSH_INCOMPLETE
     if (csv_ring_count() > 0) {
+        g_flush_incomplete = true;
         if (xSemaphoreTake(_fs_mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
             CsvRow fe = {};
             RunContext* ctx = sm_ctx();

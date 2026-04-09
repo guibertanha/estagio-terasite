@@ -1,7 +1,7 @@
 /**
  * @file    rf_field_validator.ino
  * @brief   Firmware de validação RF de campo — Frotall FRITG01LTE
- * @version N2.1
+ * @version N3.0
  *
  * Fases: F0 (baseline), F1 (WALK), F2 (CLOCK), F3A/3B (BURN)
  * Perfil A: Stress Window 15s (ping 3s + throughput TCP 10s + cooldown 2s)
@@ -45,7 +45,7 @@ static TaskHandle_t _task_sup    = nullptr;
 
 // ── Buffer CLI ────────────────────────────────────────────────
 #define CLI_BUF_SIZE 128
-static char  _cli_buf[CLI_BUF_SIZE];
+static char   _cli_buf[CLI_BUF_SIZE];
 static uint8_t _cli_len = 0;
 
 // ── NTP ───────────────────────────────────────────────────────
@@ -70,29 +70,29 @@ static void _task_log_fn(void* p) {
     for (;;) {
         State st = sm_state();
 
-        // flush por lote periódico
+        // Flush por lote quando atingir FLUSH_BATCH
         if ((st == State::RUNNING_WALK  || st == State::RUNNING_CLOCK ||
              st == State::RUNNING_BURN  || st == State::RUNNING_BURN3) &&
             csv_ring_count() >= FLUSH_BATCH) {
             csv_flush_batch();
         }
 
-        // flush forçado por tempo
-        // (FLUSH_INTERVAL_MS verificado aqui de forma aproximada)
+        // Flush forçado por tempo (FLUSH_INTERVAL_MS — agora 2 s)
         static uint32_t last_timed = 0;
         if (millis() - last_timed >= FLUSH_INTERVAL_MS) {
             if (csv_ring_count() > 0) csv_flush_batch();
             last_timed = millis();
         }
 
-        // FLUSHING: fechar run
+        // FLUSHING: fechar run e voltar para READY
         if (st == State::FLUSHING) {
             csv_close_run(false);
-            // volta para READY (config permanece)
-            // Re-usa sm_cmd_config com os mesmos valores
             RunContext* ctx = sm_ctx();
             sm_cmd_config(ctx->antenna, ctx->location, ctx->condition);
             Serial.println("[OK] Run encerrado. READY para novo START_*");
+            if (g_flush_incomplete) {
+                Serial.println("[WARN] FLUSH_INCOMPLETE — verifique o CSV");
+            }
             digitalWrite(PIN_LED, LOW);
         }
 
@@ -102,7 +102,6 @@ static void _task_log_fn(void* p) {
 
 // ── Parsing de comandos CLI ───────────────────────────────────
 static void _process_cli(const char* line) {
-    // Copia para buffer mutável para strtok
     static char buf[CLI_BUF_SIZE];
     strncpy(buf, line, sizeof(buf)-1);
     buf[sizeof(buf)-1] = '\0';
@@ -173,10 +172,7 @@ static void _process_cli(const char* line) {
     // ── MARK ──────────────────────────────────────────────────
     if (strcasecmp(tok, "MARK") == 0) {
         char* label = strtok(nullptr, " \t\r\n");
-        if (!label) {
-            Serial.println("[ERR] Uso: MARK <label>");
-            return;
-        }
+        if (!label) { Serial.println("[ERR] Uso: MARK <label>"); return; }
         const char* err = sm_cmd_mark(label);
         if (err) Serial.printf("[ERR] %s\n", err);
         else     Serial.printf("[OK] MARK=%s\n", label);
@@ -211,11 +207,14 @@ static void _process_cli(const char* line) {
                       ctx->run_number, (unsigned long)ctx->samples);
         Serial.printf("Uptime     : %lu s\n", millis() / 1000);
         Serial.printf("RSSI link  : %d dBm\n", (int)rssi);
-        Serial.printf("V_IN       : %u mV\n", sup_vin_mv());
         Serial.printf("Temperatura: %.1f C\n", sup_temp_c());
+        Serial.printf("V_IN       : %u mV\n", sup_vin_mv());
         Serial.printf("Flash livre: %lu KB\n", (unsigned long)csv_free_kb());
         Serial.printf("Ring buffer: %u linhas pendentes\n", csv_ring_count());
         Serial.printf("EPOCH NTP  : %s\n", g_epoch_anchored ? "ok" : "nao ancorado");
+        Serial.printf("WiFi       : %s\n", WiFi.status() == WL_CONNECTED ? "conectado" : "desconectado");
+        if (g_flush_incomplete)
+            Serial.println("[WARN] FLUSH_INCOMPLETE no ultimo run");
         if (st != State::IDLE && st != State::READY)
             Serial.printf("Arquivo    : %s\n", csv_current_filename().c_str());
         return;
@@ -266,19 +265,26 @@ static void _cli_poll() {
     }
 }
 
-// ── LED de feedback ───────────────────────────────────────────
+// ── LED de heartbeat ─────────────────────────────────────────
+// IDLE/READY: pisca lento (1 Hz)
+// FLUSHING:   pisca médio (4 Hz) — indica atividade de escrita
+// RUNNING_*:  LED controlado pela task de perfil (fica aceso)
 static void _led_heartbeat() {
-    // Heartbeat: pisca rápido se running, lento se idle/ready
     static uint32_t last_blink = 0;
     static bool led_on = false;
     State st = sm_state();
-    uint32_t period = (st == State::IDLE || st == State::READY) ? 1000 : 200;
+
+    uint32_t period;
+    if (st == State::FLUSHING)
+        period = 250;
+    else if (st == State::IDLE || st == State::READY)
+        period = 1000;
+    else
+        return;  // RUNNING_*: LED gerenciado pelo start (fica HIGH)
+
     if (millis() - last_blink >= period) {
         led_on = !led_on;
-        // LED ativo apenas no heartbeat quando não em run
-        if (st == State::IDLE || st == State::READY) {
-            digitalWrite(PIN_LED, led_on ? HIGH : LOW);
-        }
+        digitalWrite(PIN_LED, led_on ? HIGH : LOW);
         last_blink = millis();
     }
 }
@@ -292,20 +298,25 @@ void setup() {
     digitalWrite(PIN_LED, LOW);
 
     Serial.println("\n\n╔══════════════════════════════════════════╗");
-    Serial.println("║  RF Field Validator  N2.1                ║");
+    Serial.println("║  RF Field Validator  N3.0                ║");
     Serial.println("║  Frotall FRITG01LTE  — Terasite 2026     ║");
     Serial.println("╚══════════════════════════════════════════╝");
     Serial.println("Comandos: CONFIG | START_WALK | START_CLOCK | START_BURN | MARK | STOP | STATUS | EXPORT | EPOCH");
 
     // ── LittleFS ─────────────────────────────────────────────
     if (!LittleFS.begin(true)) {
-        Serial.println("[FATAL] LittleFS falhou. Verifique partição.");
+        Serial.println("[FATAL] LittleFS falhou. Verifique particao.");
         while (true) delay(1000);
     }
     Serial.printf("[FS] LittleFS ok. Livre: %lu KB\n", (unsigned long)csv_free_kb());
+    if (csv_free_kb() < FS_WARN_KB) {
+        Serial.printf("[WARN] Flash baixo: %lu KB (limite de aviso: %d KB)\n",
+                      (unsigned long)csv_free_kb(), FS_WARN_KB);
+    }
 
-    // ── Wi-Fi (STA, não bloqueia) ────────────────────────────
+    // ── Wi-Fi (STA, reconexão automática habilitada) ──────────
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     Serial.printf("[WiFi] Conectando a %s...\n", WIFI_SSID);
     uint32_t wt = millis();
@@ -319,7 +330,8 @@ void setup() {
                       WiFi.localIP().toString().c_str(), WiFi.RSSI());
         _try_ntp();
     } else {
-        Serial.println("[WiFi] Sem conexao. Use START_WALK --cold ou aguarde.");
+        Serial.println("[WiFi] Sem conexao no boot. Tentando reconectar em background...");
+        Serial.println("       Use START_WALK --cold para operar sem WiFi.");
     }
 
     // ── Ring buffer + state machine ───────────────────────────
@@ -327,30 +339,40 @@ void setup() {
     sm_init();
     supervision_init();
 
-    // ── Interface Web (celular em campo) ─────────────────────
+    // ── Interface Web (só se WiFi disponível no boot) ─────────
     if (WiFi.status() == WL_CONNECTED) {
         web_ui_init();
     } else {
-        Serial.println("[Web] Sem WiFi — painel web indisponivel.");
+        Serial.println("[Web] Painel indisponivel — sera iniciado ao reconectar.");
     }
 
     // ── Tasks FreeRTOS ────────────────────────────────────────
-    // Supervisão: alta prioridade, leve, 1 Hz
     xTaskCreatePinnedToCore(supervision_task, "sup",  2048, nullptr, 5, &_task_sup,   1);
-    // Medição Perfil B (WALK/CLOCK)
     xTaskCreatePinnedToCore(profile_b_task,   "profB", 4096, nullptr, 3, &_task_profb, 1);
-    // Medição Perfil A (BURN)
     xTaskCreatePinnedToCore(profile_a_task,   "profA", 6144, nullptr, 3, &_task_profa, 1);
-    // Log / flush (prioridade baixa)
     xTaskCreatePinnedToCore(_task_log_fn,     "log",   4096, nullptr, 1, &_task_log,   1);
 
     Serial.println("[OK] Tasks iniciadas. IDLE — aguardando CONFIG.");
 }
 
-// ── loop() — CLI, web server e heartbeat LED ─────────────────
+// ── loop() — CLI, web server, heartbeat e reconexão WiFi ─────
 void loop() {
     _cli_poll();
-    web_ui_handle();   // atende requisições HTTP + botão físico
+
+    // Inicia o painel web assim que o WiFi conectar (caso tenha falhado no boot)
+    web_ui_try_init();
+
+    // Se WiFi reconectou e NTP ainda não foi ancorado, tenta agora
+    static bool _ntp_pending = false;
+    if (!g_epoch_anchored && WiFi.status() == WL_CONNECTED) {
+        if (!_ntp_pending) {
+            _ntp_pending = true;  // evita tentar em cada ciclo do loop
+            _try_ntp();
+            _ntp_pending = false;
+        }
+    }
+
+    web_ui_handle();
     _led_heartbeat();
     delay(5);
 }

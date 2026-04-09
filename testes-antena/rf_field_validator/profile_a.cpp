@@ -50,10 +50,9 @@ static PingStats _run_ping_phase() {
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
-    // P10 do RSSI (ordena parcialmente)
+    // P10 do RSSI (ordena parcialmente via selection sort)
     uint32_t n = total;
     if (n > 1) {
-        // selection sort parcial até índice p10
         uint32_t p10_idx = n / 10;
         for (uint32_t i = 0; i <= p10_idx && i < n; i++) {
             uint32_t min_i = i;
@@ -73,41 +72,41 @@ static PingStats _run_ping_phase() {
 }
 
 // ── Fase de throughput TCP (10 s) ────────────────────────────
+// Buffer estático — 4 KB no heap global, não na stack da task.
+static uint8_t _tcp_buf[TCP_BUF_SIZE];
+
 static uint32_t _run_tput_phase() {
     WiFiClient client;
     if (!client.connect(TCP_TARGET_HOST, TCP_TARGET_PORT)) {
-        // Servidor tcp_sink.py não disponível — registra 0 e continua
+        // Servidor tcp_sink.py não disponível — registra 0 e espera o tempo normal
         vTaskDelay(pdMS_TO_TICKS(TPUT_PHASE_MS));
         return 0;
     }
 
-    uint8_t buf[TCP_BUF_SIZE];
-    memset(buf, 0xAA, sizeof(buf));
+    memset(_tcp_buf, 0xAA, sizeof(_tcp_buf));
 
     uint32_t bytes_sent = 0;
     uint32_t end = millis() + TPUT_PHASE_MS;
     while (millis() < end && client.connected()) {
-        int written = client.write(buf, TCP_BUF_SIZE);
+        int written = client.write(_tcp_buf, TCP_BUF_SIZE);
         if (written > 0) bytes_sent += written;
         vTaskDelay(pdMS_TO_TICKS(1));
     }
     client.stop();
 
-    // bps = bytes * 8 / 10 s
-    return bytes_sent / 10 * 8;
+    // bps = bytes × 8 / 10 s — usa uint64_t para evitar overflow com buffers grandes
+    return (uint32_t)((uint64_t)bytes_sent * 8 / 10);
 }
 
 // ── Uma janela completa de 15 s ───────────────────────────────
 static CsvRow _run_window(uint32_t seq) {
-    // Fase ping
     PingStats ps = _run_ping_phase();
 
-    // Fase throughput
     uint32_t tput = 0;
     if (WiFi.status() == WL_CONNECTED)
         tput = _run_tput_phase();
 
-    // Cooldown / flush parcial
+    // Cooldown: flush parcial + delay
     csv_flush_batch();
     vTaskDelay(pdMS_TO_TICKS(COOL_PHASE_MS));
 
@@ -133,7 +132,7 @@ void profile_a_task(void* param) {
         }
 
         if (WiFi.status() != WL_CONNECTED) {
-            csv_write_event("LINK_DOWN");
+            // supervision já emite LINK_DOWN/LINK_UP — só espera o tempo da janela
             vTaskDelay(pdMS_TO_TICKS(WINDOW_MS));
             continue;
         }
@@ -143,7 +142,7 @@ void profile_a_task(void* param) {
             CsvRow r = _run_window(seq++);
             csv_ring_push(r);
             sm_ctx()->samples++;
-            continue;  // volta ao loop, verifica STOP
+            continue;
         }
 
         // ── BURN 3x60 ─────────────────────────────────────────
@@ -157,7 +156,6 @@ void profile_a_task(void* param) {
             if (elapsed_block >= BLOCK_DURATION_MS) {
                 ctx->blocks_done++;
                 if (ctx->blocks_done >= 3) {
-                    // Encerramento automático
                     sm_finish_burn3();
                 } else {
                     uint8_t next_block = ctx->blocks_done + 1;
