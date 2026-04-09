@@ -22,8 +22,8 @@ static int8_t _rssi() {
     return -127;
 }
 
-// ── Fase de ping (3 s): coleta amostras, retorna PLR e RSSI P10 ──
-struct PingStats { float plr; int8_t rssi_p10; uint32_t ok; uint32_t total; };
+// ── Fase de ping (3 s): coleta amostras, retorna PLR, RSSI P10 e latência média ──
+struct PingStats { float plr; int8_t rssi_p10; uint32_t ok; uint32_t total; float lat_avg_ms; };
 
 static PingStats _run_ping_phase() {
     IPAddress target;
@@ -36,11 +36,15 @@ static PingStats _run_ping_phase() {
     const int MAX_SAMPLES = 60;
     int8_t rssi_buf[MAX_SAMPLES];
     uint32_t ok = 0, total = 0;
+    float lat_sum = 0.0f;
     uint32_t end = millis() + PING_PHASE_MS;
 
     while (millis() < end && total < (uint32_t)MAX_SAMPLES) {
         bool hit = Ping.ping(target, 1);
-        if (hit) ok++;
+        if (hit) {
+            ok++;
+            lat_sum += Ping.averageTime();
+        }
         rssi_buf[total] = _rssi();
         total++;
         vTaskDelay(pdMS_TO_TICKS(50));
@@ -60,10 +64,11 @@ static PingStats _run_ping_phase() {
     }
 
     PingStats s;
-    s.ok       = ok;
-    s.total    = total;
-    s.plr      = total > 0 ? (float)(total - ok) / total * 100.0f : 100.0f;
-    s.rssi_p10 = (n > 0) ? rssi_buf[n / 10] : -127;
+    s.ok         = ok;
+    s.total      = total;
+    s.plr        = total > 0 ? (float)(total - ok) / total * 100.0f : 100.0f;
+    s.rssi_p10   = (n > 0) ? rssi_buf[n / 10] : -127;
+    s.lat_avg_ms = (ok > 0) ? lat_sum / ok : 0.0f;
     return s;
 }
 
@@ -106,7 +111,7 @@ static CsvRow _run_window(uint32_t seq) {
     csv_flush_batch();
     vTaskDelay(pdMS_TO_TICKS(COOL_PHASE_MS));
 
-    CsvRow r = csv_make_sample(ps.rssi_p10, ps.ok > 0 ? 1 : 0, 0.0f, seq,
+    CsvRow r = csv_make_sample(ps.rssi_p10, ps.ok > 0 ? 1 : 0, ps.lat_avg_ms, seq,
                                tput, ps.plr);
     r.vin_mv     = sup_vin_mv();
     r.temp_c     = sup_temp_c();

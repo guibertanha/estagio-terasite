@@ -67,6 +67,7 @@ a.del:hover{text-decoration:underline}
 <div class="card">
   <div id="sb" class="si">IDLE</div>
   <div id="timer-row" class="sr" style="display:none"><span class="sl">Tempo</span><span class="sv" id="timer" style="font-size:1.1em;color:#3fb950;letter-spacing:.05em">00:00</span></div>
+  <div id="block-row" class="sr" style="display:none"><span class="sl">Bloco</span><span class="sv" id="block-ind" style="color:#d29922">-</span></div>
   <div class="sr"><span class="sl">Config</span><span class="sv" id="cfg">-/-/-</span></div>
   <div class="sr"><span class="sl">Arquivo</span><span class="sv" id="fname" style="font-size:.75em">-</span></div>
   <div class="sr"><span class="sl">RSSI</span><span class="sv" id="rssi">--- dBm</span></div>
@@ -113,7 +114,10 @@ a.del:hover{text-decoration:underline}
 
 <div class="card">
   <h3>Logs</h3>
-  <button onclick="loadLogs()" style="margin-bottom:8px">&#x21BB; Atualizar lista</button>
+  <div style="display:flex;gap:6px;margin-bottom:8px">
+    <button style="flex:1" onclick="loadLogs()">&#x21BB; Atualizar lista</button>
+    <button id="btn-dl-all" style="flex:1" onclick="downloadAll()">&#x2B07; Baixar todos</button>
+  </div>
   <div id="ll"><em style="color:#8b949e;font-size:.83em">Clique em Atualizar lista.</em></div>
 </div>
 
@@ -205,6 +209,51 @@ function delFile(enc){
   }).catch(function(){alert('Erro de rede');});
 }
 
+// ── ZIP STORE mode (sem compressão, sem dependências) ─────────
+var _crcT=(function(){var t=[];for(var i=0;i<256;i++){var c=i;for(var j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):c>>>1;t[i]=c>>>0;}return t;})();
+function _crc32(u8){var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c=(_crcT[(c^u8[i])&0xFF]^(c>>>8))>>>0;return(c^0xFFFFFFFF)>>>0;}
+function _zip(files){
+  function w32(v,b,o){b[o]=v&0xFF;b[o+1]=(v>>8)&0xFF;b[o+2]=(v>>16)&0xFF;b[o+3]=(v>>24)&0xFF;}
+  function w16(v,b,o){b[o]=v&0xFF;b[o+1]=(v>>8)&0xFF;}
+  var parts=[],cdirs=[],off=0,enc=new TextEncoder();
+  files.forEach(function(f){
+    var nm=enc.encode(f.name),d=f.data,crc=_crc32(d),sz=d.length;
+    var lh=new Uint8Array(30+nm.length);
+    w32(0x04034b50,lh,0);w16(20,lh,4);w16(0,lh,6);w16(0,lh,8);w16(0,lh,10);w16(0,lh,12);
+    w32(crc,lh,14);w32(sz,lh,18);w32(sz,lh,22);w16(nm.length,lh,26);w16(0,lh,28);lh.set(nm,30);
+    var cd=new Uint8Array(46+nm.length);
+    w32(0x02014b50,cd,0);w16(20,cd,4);w16(20,cd,6);w16(0,cd,8);w16(0,cd,10);w16(0,cd,12);w16(0,cd,14);
+    w32(crc,cd,16);w32(sz,cd,20);w32(sz,cd,24);w16(nm.length,cd,28);w16(0,cd,30);w16(0,cd,32);
+    w16(0,cd,34);w16(0,cd,36);w32(0,cd,38);w32(off,cd,42);cd.set(nm,46);
+    parts.push(lh,d);cdirs.push(cd);off+=lh.length+sz;
+  });
+  var cdOff=off,cdSz=cdirs.reduce(function(a,c){return a+c.length;},0);
+  var eocd=new Uint8Array(22);
+  w32(0x06054b50,eocd,0);w16(0,eocd,4);w16(0,eocd,6);w16(files.length,eocd,8);w16(files.length,eocd,10);
+  w32(cdSz,eocd,12);w32(cdOff,eocd,16);w16(0,eocd,20);
+  var all=parts.concat(cdirs).concat([eocd]);
+  var tot=all.reduce(function(a,b){return a+b.length;},0),out=new Uint8Array(tot),pos=0;
+  all.forEach(function(b){out.set(b,pos);pos+=b.length;});
+  return out;
+}
+async function downloadAll(){
+  var btn=document.getElementById('btn-dl-all');
+  btn.textContent='...';btn.disabled=true;
+  try{
+    var d=await fetch('/logs').then(function(r){return r.json();});
+    if(!d.files||!d.files.length){alert('Nenhum log.');return;}
+    var files=[];
+    for(var i=0;i<d.files.length;i++){
+      var fn=d.files[i].name;
+      var ab=await fetch('/download?f='+encodeURIComponent(fn)).then(function(r){return r.arrayBuffer();});
+      files.push({name:fn,data:new Uint8Array(ab)});
+    }
+    var blob=new Blob([_zip(files)],{type:'application/zip'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='logs.zip';a.click();
+  }catch(e){alert('Erro: '+e);}
+  finally{btn.textContent='&#x2B07; Baixar todos';btn.disabled=false;}
+}
+
 var _wasRunning=false;
 function updateStatus(){
   fetch('/status').then(function(r){return r.json();}).then(function(d){
@@ -222,6 +271,11 @@ function updateStatus(){
     if(running){startTimer(d.elapsed_ms);}
     else if(_wasRunning){stopTimer();}
     _wasRunning=running;
+    var blkRow=document.getElementById('block-row');
+    if(d.state==='RUNNING_BURN3'){
+      blkRow.style.display='flex';
+      document.getElementById('block-ind').textContent=(d.block||1)+'/3';
+    }else{blkRow.style.display='none';}
   }).catch(function(){});
 }
 
@@ -307,7 +361,7 @@ static void _handle_status() {
 
     uint32_t elapsed_ms = _is_running() ? millis() - ctx->start_ms : 0;
 
-    char buf[300];
+    char buf[380];
     snprintf(buf, sizeof(buf),
         "{\"state\":\"%s\","
         "\"cfg\":\"%s/%s/%s\","
@@ -317,7 +371,9 @@ static void _handle_status() {
         "\"vin_mv\":%u,"
         "\"flash_kb\":%lu,"
         "\"ntp\":%s,"
-        "\"elapsed_ms\":%lu}",
+        "\"elapsed_ms\":%lu,"
+        "\"block\":%u,"
+        "\"blocks_done\":%u}",
         _state_name(),
         ctx->antenna, ctx->location, ctx->condition,
         fname.c_str(),
@@ -326,7 +382,9 @@ static void _handle_status() {
         sup_vin_mv(),
         (unsigned long)csv_free_kb(),
         g_epoch_anchored ? "true" : "false",
-        (unsigned long)elapsed_ms
+        (unsigned long)elapsed_ms,
+        ctx->active_block,
+        ctx->blocks_done
     );
     _srv.send(200, "application/json", buf);
 }
