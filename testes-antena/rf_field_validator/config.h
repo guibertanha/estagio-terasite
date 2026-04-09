@@ -12,7 +12,7 @@
 
 // ── Alvo TCP para throughput (Perfil A) ──────────────────────
 // Rodar no notebook: python tools/tcp_sink.py
-#define TCP_TARGET_HOST  "192.168.x.x"   // IP do AP / notebook
+#define TCP_TARGET_HOST  "192.168.x.x"   // IP do notebook na rede de casa
 #define TCP_TARGET_PORT  5201
 #define TCP_BUF_SIZE     1024             // bytes por write
 
