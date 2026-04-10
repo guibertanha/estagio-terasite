@@ -1,32 +1,35 @@
 # Estágio Terasite — Validação de Antenas Wi-Fi (FRITG01LTE)
 
-Repositório de trabalho do estágio de Engenharia Mecatrônica na **Terasite Tecnologia**.
-Contém os dados, scripts, relatórios e documentação produzidos durante a validação e
-seleção de antenas Wi-Fi para o gateway IoT **Frotall FRITG01LTE**.
+Repositório de estágio em Engenharia Mecatrônica na **Terasite Tecnologia**.  
+Objetivo: selecionar a melhor antena Wi-Fi externa para o gateway IoT **Frotall FRITG01LTE**,
+instalado em máquinas de construção civil (escavadeiras, motoniveladoras, compactadoras).
 
 ---
 
 ## Contexto
 
-O Frotall é um gateway de telemetria embarcada para máquinas pesadas de linha amarela
-(ESP32-WROOM-32 + SIM7600G LTE + LSM6DS3 + Flash SPI 16 MB). Uma das atividades de
-validação é a seleção da antena Wi-Fi com melhor desempenho dentro do invólucro PA66
-(proteção IP54) em condições reais de campo.
+O Frotall é um gateway de telemetria embarcada (ESP32-WROOM-32 + SIM7600G LTE + Flash SPI 16 MB)
+instalado em máquinas de linha amarela. A antena Wi-Fi interna (INT) opera dentro de um invólucro
+PA66 com proteção IP54, em ambiente com vibração intensa, EMI do motor e variação de tensão.
 
-Para o contexto técnico completo do projeto, consulte [CONTEXTO.md](./CONTEXTO.md).
+O objetivo é determinar se alguma das antenas externas (A41, A42, A51, A52, A53) supera a INT
+em condições reais de campo, usando métricas objetivas: RSSI, PLR, throughput TCP e TTR.
 
 ---
 
 ## Antenas Avaliadas
 
-| ID | Descrição | Status |
-|----|-----------|--------|
-| A0 | Antena nativa do módulo ESP32 (integrada PCB) | Referência baseline |
-| A1 | Externa cilíndrica com cabo | Descartada — volume físico excessivo e dificuldade de integração mecânica |
-| A2 | Externa flexível longa | Descartada — sem vantagem mecânica |
-| A3 | Externa flexível média adesiva | Avaliada na Fase 1 |
-| A4 | Micro antena rígida SMD | **Finalista** — melhor robustez mecânica in-case |
-| A5 | Flexível FPC Molex T-Bar adesiva | **Finalista** — melhor RSSI in-case |
+| ID | Tipo | Status | Score bancada |
+|----|------|--------|---------------|
+| INT | Interna (baseline) | A testar | — |
+| A41 | Externa | Testada (bancada 09/04) | 57.2 |
+| A42 | Externa | Testada (bancada 09/04) | 52.8 |
+| A51 | Externa | Testada (bancada 09/04) | 76.7 |
+| A52 | Externa | Testada (bancada 09/04) | 67.8 |
+| A53 | Externa | Testada (bancada 09/04) | **100.0** |
+
+Score relativo à campanha: 100 = melhor antena testada, 0 = pior.
+INT ainda não incluída — será o baseline de comparação no teste de campo.
 
 ---
 
@@ -34,71 +37,98 @@ Para o contexto técnico completo do projeto, consulte [CONTEXTO.md](./CONTEXTO.
 
 ```
 estagio-terasite/
-├── testes-antena/        # Firmwares Arduino/ESP32 usados nos ensaios
-├── analise-dados/        # Scripts Python de processamento e visualização
-├── dados-brutos/         # Logs brutos dos ensaios (RSSI e Ping)
-│   ├── rssi-fase1/       # Fase 1: A0, A1, A2, A3, A4 (sem A5)
-│   ├── rssi-fase2/       # Fase 2: A4 vs A5 com múltiplas unidades
-│   └── ping/             # Ensaios de estabilidade de enlace (ping em rajada)
-├── relatorios/           # Outputs das análises (CSVs, PNGs, sumários)
-│   ├── rssi-fase1/       # Relatório técnico RSSI Fase 1
-│   ├── ping-tecnico/     # Relatório técnico de ping (versão engenharia)
-│   └── ping-executivo/   # Sumário executivo dos ensaios de ping
-├── ensaios-futuros/      # Planejamento dos próximos ciclos de ensaios
-│   ├── termomecanico/    # TM-01, TM-02, TM-03
-│   ├── emi-emc/          # Varreduras com o analisador SA6
-│   └── campo/            # iPerf3 em máquinas reais
-├── datasheets/           # Documentação técnica de componentes e equipamentos
-│   ├── antenas/
-│   ├── instrumentacao/
-│   └── maquinas-campo/
-├── fotos/                # Fotos das antenas e dos ensaios
-│   └── antenas/
-├── docs/                 # Procedimentos, checklists e guias operacionais
-│   └── relatorios-anteriores/
-├── firmware-frotall/     # Referência ao firmware oficial (somente leitura)
-└── CONTEXTO.md           # Contexto técnico completo do projeto
+├── testes-antena/
+│   └── rf_field_validator/     <- PROJETO PRINCIPAL
+│       ├── rf_field_validator.ino
+│       ├── config.h            <- único arquivo a editar por campanha
+│       ├── profile_a.h/.cpp    <- BURN: ping 3s + TCP 10s + cooldown 2s
+│       ├── profile_b.h/.cpp    <- WALK (2Hz) e CLOCK (1Hz com marcadores)
+│       ├── csv_log.h/.cpp      <- ring buffer, flush 2s, CRC16/linha
+│       ├── state_machine.h/.cpp
+│       ├── supervision.h/.cpp  <- V_IN, temperatura, link edge-triggered
+│       ├── weblog.h/.cpp       <- terminal de logs via browser
+│       ├── web_ui.h/.cpp       <- painel HTML completo na porta 80
+│       ├── campanhas/          <- dados coletados por data
+│       │   └── YYYY-MM-DD/
+│       │       ├── BURN_A53_MESA_DES_R01.csv
+│       │       └── report/
+│       │           ├── report.html
+│       │           └── summary.csv
+│       └── tools/
+│           ├── parser.py       <- pipeline offline: ingestao -> score -> HTML
+│           ├── tcp_sink.py     <- servidor TCP para medir throughput
+│           └── sync.py         <- baixa CSVs do ESP32 + roda parser
+├── datasheets/
+│   ├── antenas/                <- PDFs das antenas
+│   ├── instrumentacao/         <- SA6 spectrum analyzer manual
+│   └── maquinas-campo/         <- datasheets das maquinas
+├── dados-brutos/               <- dados de fases anteriores (legacy)
+└── relatorios/                 <- relatorios de fases anteriores (legacy)
 ```
 
 ---
 
-## Fases de Ensaio Realizadas
+## Modos de Teste
 
-### Fase 1 — RSSI Baseline e In-Case (A0, A1, A2, A3, A4)
-- Medições de RSSI em condição aberta (baseline) e dentro do invólucro PA66
-- Antenas A0, A1, A2, A3 e A4
-- Resultados em: `relatorios/rssi-fase1/`
-
-### Fase 2 — RSSI Comparativo A4 vs A5 + Ping
-- Inclusão da A5 (FPC Molex T-Bar)
-- Ensaios com múltiplas unidades (U1, U2, U3) e repetições (T1, T2, T3)
-- Ensaios de ping em rajada para estabilidade de enlace
-- Análise qualitativa do espectro no SA6 (35–6200 MHz)
-- Resultados em: `relatorios/ping-tecnico/` e `relatorios/ping-executivo/`
+| Modo | Cadência | Uso |
+|------|----------|-----|
+| **BURN** | Janelas 15s (ping 3s + TCP 10s + cool 2s) | Throughput e RSSI em condicao estacionaria |
+| **WALK** | 2 Hz continuo | TTR (tempo de reconexao) ao mover pela area |
+| **CLOCK** | 1 Hz com marcadores de posicao | Mapeamento RSSI por ponto do ambiente |
+| **BURN 3x60** | 3 blocos de 60s | Estabilidade ao longo do tempo |
 
 ---
 
-## Próximos Passos
+## Pipeline de Analise
 
-- [ ] Ensaios termomecânicos (TM-01, TM-02, TM-03)
-- [ ] Varredura EMI/EMC com sondas de campo próximo no SA6
-- [ ] Ensaios de RF em campo com iPerf3 em máquinas reais
-- [ ] Survey de posicionamento do gateway nas máquinas da construtora
-- [ ] Ensaios destrutivos PVT/MP (Load Dump, Brownout/Flash, CAN Fault Injection)
+```bash
+# No notebook — necessario para medir throughput BURN
+python tools/tcp_sink.py --port 5201
+
+# Celular acessa http://<IP_ESP32>/ para controlar os testes
+
+# Ao terminar — baixa CSVs e gera relatorio HTML
+python tools/sync.py <IP_ESP32>
+# ou: painel web -> Baixar todos -> logs.zip
+# depois: python tools/parser.py campanhas/YYYY-MM-DD
+```
+
+O relatorio HTML inclui: banner vencedor, radar multidimensional, heatmap de metricas,
+distribuicao RSSI (P10-P90), time series por janela BURN e comparacao por marcador CLOCK.
 
 ---
 
-## Instrumentação Utilizada
+## Score RF
 
-- Analisador de espectro **SA6** (35–6200 MHz, IF BW fixo 200 kHz)
-  - Recursos: Max Hold, Avg trace, Waterfall, marcadores
-  - Cabo: SMA RG174 30 cm
-- ESP32-WROOM-32 com firmware customizado (`testes-antena/`)
+```
+Score = 40% PLR + 33% RSSI P10 + 27% Throughput   (TTR excluido quando sem desconexoes WALK)
+```
+
+Normalizacao min-max entre as antenas da campanha. Requer INT na mesma pasta para comparacao valida.
 
 ---
 
-## Informações do Repositório
+## Instrumentacao
 
-- **Autor:** Guilherme Bertanha — Estagiário Eng. Mecatrônica
-- **Empresa:** Terasite Tecnologia
-- **Produto:** Frotall IoT Telemetry Gateway (FRITG01LTE)
+- **SA6** — Analisador de espectro portatil 35-6200 MHz, piso -100 dBm, com gerador de rastreamento
+  - Uso: varredura em 2,4 GHz antes e depois de ligar o motor para quantificar EMI
+- **ESP32-WROOM-32** com firmware rf_field_validator (este repositorio)
+
+---
+
+## Cronograma
+
+| Mes | Atividade |
+|-----|-----------|
+| 2-3 | Testes de bancada (em andamento — falta INT) |
+| 3-4 | Analise de resultados de bancada |
+| 4 | **Testes em campo** (proxima semana) |
+| 4-5 | Otimizacao do firmware e reteste |
+| 6-7 | Estudo comparativo e relatorio final |
+
+---
+
+## Autor
+
+**Guilherme Bertanha** — Estagiario Eng. Mecatronica  
+Terasite Tecnologia · Frotall FRITG01LTE
