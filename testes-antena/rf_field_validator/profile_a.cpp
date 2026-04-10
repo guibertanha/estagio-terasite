@@ -3,6 +3,7 @@
 #include "csv_log.h"
 #include "state_machine.h"
 #include "supervision.h"
+#include "weblog.h"
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <ESPping.h>
@@ -141,7 +142,10 @@ void profile_a_task(void* param) {
         if (st == State::RUNNING_BURN) {
             CsvRow r = _run_window(seq++);
             csv_ring_push(r);
-            sm_ctx()->samples++;
+            uint32_t n = ++sm_ctx()->samples;
+            weblog_printf("[BURN] #%lu  RSSI %d dBm  tput %.1f Mbps  PLR %.1f%%\n",
+                          (unsigned long)n, (int)r.rssi_dbm,
+                          r.throughput_bps / 1e6f, r.plr_window);
             continue;
         }
 
@@ -151,15 +155,20 @@ void profile_a_task(void* param) {
             CsvRow r = _run_window(seq++);
             csv_ring_push(r);
             ctx->samples++;
+            weblog_printf("[BURN3] Bloco %u/3  #%lu  RSSI %d dBm  tput %.1f Mbps\n",
+                          ctx->active_block, (unsigned long)ctx->samples,
+                          (int)r.rssi_dbm, r.throughput_bps / 1e6f);
 
             uint32_t elapsed_block = millis() - ctx->block_start_ms;
             if (elapsed_block >= BLOCK_DURATION_MS) {
                 ctx->blocks_done++;
                 if (ctx->blocks_done >= 3) {
+                    weblog_println("[BURN3] 3 blocos completos — encerrando...");
                     sm_finish_burn3();
                 } else {
                     uint8_t next_block = ctx->blocks_done + 1;
                     csv_write_block_event(next_block);
+                    weblog_printf("[BURN3] Bloco %u/3 iniciado\n", next_block);
 
                     // Feedback visual: pisca LED rapidamente entre blocos
                     for (int i = 0; i < 6; i++) {

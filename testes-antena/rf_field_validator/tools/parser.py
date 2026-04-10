@@ -187,17 +187,20 @@ def aggregate_burn(rows: list) -> dict:
     return result
 
 def aggregate_walk(rows: list) -> dict:
-    """Perfil B WALK: TTR + RSSI."""
+    """Perfil B WALK: TTR + RSSI + latência."""
     DISC_THRESHOLD = 3
     pings = [r for r in rows if r.get("type") == "S"]
-    rssi_list, ttr_list = [], []
+    rssi_list, ttr_list, lat_list = [], [], []
     consec_fail, in_disc, disc_ts = 0, False, 0.0
 
     for r in pings:
         ok   = int(r.get("ping_ok") or 0)
         rssi = int(r.get("rssi_dbm") or -127)
+        lat  = float(r.get("ping_latency_ms") or 0)
         ts   = float(r.get("timestamp_ms") or 0)
         rssi_list.append(rssi)
+        if ok:
+            lat_list.append(lat)
 
         if ok == 0:
             consec_fail += 1
@@ -215,6 +218,7 @@ def aggregate_walk(rows: list) -> dict:
         "ttr_median_s": _median(ttr_list),
         "ttr_p90_s":    _pct(ttr_list, 90),
         "disc_events":  len(ttr_list),
+        "lat_median":   _median(lat_list),
         "n":            len(pings),
     }
 
@@ -279,6 +283,7 @@ def consolidate_walk(agg_list: list) -> dict:
         "rssi_median":  _median([a["rssi_median"]  for a in agg_list]),
         "ttr_median_s": _median([a["ttr_median_s"] for a in agg_list]),
         "disc_events":  _median([a["disc_events"]  for a in agg_list]),
+        "lat_median":   _median([a["lat_median"]   for a in agg_list]),
         "n_runs":       len(agg_list),
     }
 
@@ -293,6 +298,7 @@ def consolidate_clock(agg_list: list) -> dict:
             "rssi_median": _median([r["rssi_median"] for r in runs_with]),
             "rssi_p10":    _median([r["rssi_p10"]    for r in runs_with]),
             "plr_pct":     _median([r["plr_pct"]     for r in runs_with]),
+            "lat_median":  _median([r["lat_median"]  for r in runs_with]),
             "n_runs":      len(runs_with),
         }
     return result
@@ -431,9 +437,6 @@ def run_pipeline(campaign_dir: Path, weights: dict):
                         raw_samples[ant].append(r)
             elif mode == "WALK":
                 agg_list.append(aggregate_walk(run["rows"]))
-                for r in run["rows"]:
-                    if r.get("type") == "S":
-                        raw_samples[ant].append(r)
             elif mode == "CLOCK":
                 agg_list.append(aggregate_clock(run["rows"]))
 
@@ -449,7 +452,7 @@ def run_pipeline(campaign_dir: Path, weights: dict):
                     "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
                     "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
                     "tput_median": 0.0, "tput_p10": 0.0,
-                    "plr_median": 100.0, "ttr_median_s": 999.0,
+                    "plr_median": 100.0, "ttr_median_s": 999.0, "lat_median": float("nan"),
                 }
             d = antenna_metrics[ant]
             if rssi_vals: d["rssi_p10"]    = max(d["rssi_p10"],    _median(rssi_vals))
@@ -469,13 +472,18 @@ def run_pipeline(campaign_dir: Path, weights: dict):
                     "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
                     "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
                     "tput_median": 0.0, "tput_p10": 0.0,
-                    "plr_median": 100.0, "ttr_median_s": 999.0,
+                    "plr_median": 100.0, "ttr_median_s": 999.0, "lat_median": float("nan"),
                 }
             d = antenna_metrics[ant]
             if not math.isnan(cons.get("rssi_p10", float("nan"))):
                 d["rssi_p10"] = max(d["rssi_p10"], cons["rssi_p10"])
             if not math.isnan(cons.get("ttr_median_s", float("nan"))):
                 d["ttr_median_s"] = min(d["ttr_median_s"], cons["ttr_median_s"])
+            if not math.isnan(cons.get("lat_median", float("nan"))):
+                if math.isnan(d.get("lat_median", float("nan"))):
+                    d["lat_median"] = cons["lat_median"]
+                else:
+                    d["lat_median"] = min(d["lat_median"], cons["lat_median"])
 
         elif mode == "CLOCK":
             cons = consolidate_clock(agg_list)
@@ -485,18 +493,26 @@ def run_pipeline(campaign_dir: Path, weights: dict):
                     "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
                     "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
                     "tput_median": 0.0, "tput_p10": 0.0,
-                    "plr_median": 100.0, "ttr_median_s": 999.0,
+                    "plr_median": 100.0, "ttr_median_s": 999.0, "lat_median": float("nan"),
                 }
             d = antenna_metrics[ant]
             marker_rssi = [v["rssi_p10"] for v in cons.get("markers", {}).values()]
             if marker_rssi:
                 d["rssi_p10"] = max(d["rssi_p10"], _median(marker_rssi))
+            marker_lat = [v["lat_median"] for v in cons.get("markers", {}).values()
+                          if not math.isnan(v.get("lat_median", float("nan")))]
+            if marker_lat:
+                lat_med = _median(marker_lat)
+                if math.isnan(d.get("lat_median", float("nan"))):
+                    d["lat_median"] = lat_med
+                else:
+                    d["lat_median"] = min(d["lat_median"], lat_med)
 
     # Score RF
     scores, eff_weights = compute_scores(antenna_metrics, weights)
     print(f"\nScores RF (pesos: PLR={eff_weights['plr']:.0%} TTR={eff_weights['ttr']:.0%} RSSI={eff_weights['rssi']:.0%} Tput={eff_weights['tput']:.0%}):")
     if eff_weights.get("ttr", 0) == 0:
-        print("  [INFO] TTR excluido do score (sem dados de WALK)")
+        print("  [INFO] TTR excluido do score (sem eventos de desconexao nos testes WALK)")
     for ant, sc in sorted(scores.items(), key=lambda x: x[1], reverse=True):
         bar = "█" * int(sc / 5)
         print(f"  {ant:6s}: {sc:5.1f}  {bar}")
@@ -538,6 +554,27 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
     sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
 
+    # ── Subscores por eixo (para breakdown visual) ─────────────
+    def _norm_sub_min(vals):
+        clean = {k: float(v) for k, v in vals.items()
+                 if v is not None and not math.isnan(float(v))}
+        if not clean: return {k: 50.0 for k in vals}
+        lo, hi = min(clean.values()), max(clean.values())
+        if hi == lo: return {k: 100.0 for k in clean}
+        return {k: round((1 - (clean[k] - lo) / (hi - lo)) * 100, 1) for k in clean}
+
+    def _norm_sub_max(vals):
+        clean = {k: float(v) for k, v in vals.items()
+                 if v is not None and not math.isnan(float(v))}
+        if not clean: return {k: 50.0 for k in vals}
+        lo, hi = min(clean.values()), max(clean.values())
+        if hi == lo: return {k: 100.0 for k in clean}
+        return {k: round((clean[k] - lo) / (hi - lo) * 100, 1) for k in clean}
+
+    plr_sub  = _norm_sub_min({a: antenna_metrics[a]["plr_median"]  for a in sorted_ants})
+    rssi_sub = _norm_sub_max({a: antenna_metrics[a]["rssi_p10"]    for a in sorted_ants})
+    tput_sub = _norm_sub_max({a: antenna_metrics[a]["tput_median"] for a in sorted_ants})
+
     # ── Cores por antena ───────────────────────────────────────
     colors = ["#58a6ff","#3fb950","#f78166","#d29922","#a371f7",
               "#39d353","#ff7b72","#ffa657","#79c0ff","#56d364"]
@@ -558,17 +595,34 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
         return {k: round(n.get(k, 0.5) * 100, 1) for k in vals}
 
     rssi_r = _norm_radar({a: antenna_metrics[a]["rssi_p10"]    for a in sorted_ants})
-    tput_r = _norm_radar({a: antenna_metrics[a]["tput_median"] for a in sorted_ants})
     conn_r = _norm_radar({a: antenna_metrics[a]["plr_median"]  for a in sorted_ants}, False)
     stab_r = _norm_radar({a: antenna_metrics[a]["rssi_std"]    for a in sorted_ants}, False)
-    cons_r = _norm_radar({a: antenna_metrics[a]["tput_p10"] /
-                            max(antenna_metrics[a]["tput_median"], 1)
-                          for a in sorted_ants})
+
+    # Se há throughput real, usa eixo de throughput; senão, usa latência
+    has_tput = any(antenna_metrics[a]["tput_median"] > 0 for a in sorted_ants)
+    has_lat  = any(not math.isnan(antenna_metrics[a].get("lat_median", float("nan")))
+                   for a in sorted_ants)
+    if has_tput:
+        tput_r = _norm_radar({a: antenna_metrics[a]["tput_median"] for a in sorted_ants})
+        cons_r = _norm_radar({a: antenna_metrics[a]["tput_p10"] /
+                                max(antenna_metrics[a]["tput_median"], 1)
+                              for a in sorted_ants})
+        radar_datasets_data = lambda a: [rssi_r[a], tput_r[a], conn_r[a], stab_r[a], cons_r[a]]
+        radar_labels = ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"]
+    elif has_lat:
+        lat_r = _norm_radar({a: antenna_metrics[a].get("lat_median", float("nan"))
+                             for a in sorted_ants}, False)  # menor lat = melhor
+        radar_datasets_data = lambda a: [rssi_r[a], lat_r[a], conn_r[a], stab_r[a], 50.0]
+        radar_labels = ["RSSI", "Latência", "Conectividade", "Estabilidade", "—"]
+    else:
+        radar_datasets_data = lambda a: [rssi_r[a], 50.0, conn_r[a], stab_r[a], 50.0]
+        radar_labels = ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"]
+
     radar_json = json.dumps({
-        "labels": ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"],
+        "labels": radar_labels,
         "datasets": [
             {"label": a,
-             "data":  [rssi_r[a], tput_r[a], conn_r[a], stab_r[a], cons_r[a]],
+             "data":  radar_datasets_data(a),
              "color": ant_colors[a]}
             for a in sorted_ants
         ]
@@ -699,7 +753,70 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
     rssi_vals  = [_nan_to_none(antenna_metrics[a]["rssi_p10"])    for a in sorted_ants]
     tput_vals  = [_nan_to_none(antenna_metrics[a]["tput_median"]) for a in sorted_ants]
     plr_vals   = [_nan_to_none(antenna_metrics[a]["plr_median"])  for a in sorted_ants]
+    lat_vals   = [_nan_to_none(antenna_metrics[a].get("lat_median", float("nan"))) for a in sorted_ants]
     score_vals = [scores[a] for a in sorted_ants]
+
+    # ── CLOCK marker data ──────────────────────────────────────
+    # Coleta dados de marcadores de todos os runs CLOCK por antena
+    clock_section_html = ""
+    clock_chart_json = "null"
+    clock_ants_with_data = []
+    for ant in sorted_ants:
+        key = (ant, "CLOCK")
+        if key in consolidated:
+            clock_ants_with_data.append(ant)
+    if clock_ants_with_data:
+        # Coleta todos os marcadores usados
+        all_markers = sorted(set(
+            m for ant in clock_ants_with_data
+            for m in consolidated[(ant, "CLOCK")].get("markers", {}).keys()
+        ))
+        clock_datasets = []
+        for ant in clock_ants_with_data:
+            markers_data = consolidated[(ant, "CLOCK")].get("markers", {})
+            clock_datasets.append({
+                "ant":   ant,
+                "color": ant_colors[ant],
+                "rssi":  [_nan_to_none(markers_data.get(m, {}).get("rssi_median", float("nan")))
+                          for m in all_markers],
+                "lat":   [_nan_to_none(markers_data.get(m, {}).get("lat_median", float("nan")))
+                          for m in all_markers],
+                "plr":   [_nan_to_none(markers_data.get(m, {}).get("plr_pct", float("nan")))
+                          for m in all_markers],
+            })
+        clock_chart_json = json.dumps({
+            "markers":  all_markers,
+            "datasets": clock_datasets,
+        }, ensure_ascii=False)
+
+    # ── WALK TTR data ──────────────────────────────────────────
+    walk_section_html = ""
+    walk_ttr_rows = ""
+    walk_ants = []
+    for ant in sorted_ants:
+        key = (ant, "WALK")
+        if key in consolidated:
+            walk_ants.append(ant)
+    if walk_ants:
+        for ant in walk_ants:
+            cons_w = consolidated[(ant, "WALK")]
+            ttr = cons_w.get("ttr_median_s", float("nan"))
+            ttr_p90 = cons_w.get("ttr_p90_s", float("nan"))
+            disc = cons_w.get("disc_events", 0)
+            lat  = cons_w.get("lat_median", float("nan"))
+            ttr_str   = f"{ttr:.1f} s"   if not math.isnan(ttr)   else "—"
+            p90_str   = f"{ttr_p90:.1f} s" if not math.isnan(ttr_p90) else "—"
+            disc_str  = f"{int(disc)}"    if not math.isnan(disc)  else "—"
+            lat_str   = f"{lat:.0f} ms"   if not math.isnan(lat)   else "—"
+            col = ant_colors[ant]
+            walk_ttr_rows += f"""
+<tr>
+  <td style="font-weight:700;color:{col}">{ant}</td>
+  <td>{ttr_str}</td>
+  <td>{p90_str}</td>
+  <td>{disc_str}</td>
+  <td>{lat_str}</td>
+</tr>"""
 
     # ── Tabela de runs ──────────────────────────────────────────
     run_rows = ""
@@ -722,28 +839,45 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
   <td style="font-size:11px;color:#8b949e">{warns}</td>
 </tr>"""
 
-    # ── Score badges ────────────────────────────────────────────
+    # ── Score badges com breakdown por eixo ─────────────────────
     score_badges = ""
     for rank, ant in enumerate(sorted_ants, 1):
         sc   = scores[ant]
         col  = "#3fb950" if sc >= 70 else "#d29922" if sc >= 40 else "#f85149"
         pct  = min(100, max(0, int(sc)))
         crown = " 👑" if rank == 1 else ""
+        m = antenna_metrics[ant]
+        # mini-barras de subscore por eixo
+        def _mini(label, val, color="#58a6ff"):
+            w = min(100, max(0, int(val)))
+            return (f'<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
+                    f'<span style="width:28px;font-size:9px;color:#484f58">{label}</span>'
+                    f'<div style="flex:1;background:#0d1117;border-radius:3px;height:6px">'
+                    f'<div style="background:{color};width:{w}%;height:100%;border-radius:3px"></div>'
+                    f'</div>'
+                    f'<span style="width:28px;font-size:9px;color:#8b949e;text-align:right">{val:.0f}</span>'
+                    f'</div>')
+        plr_v  = plr_sub.get(ant, 50.0)
+        rssi_v = rssi_sub.get(ant, 50.0)
+        tput_v = tput_sub.get(ant, 50.0)
+        breakdown = (_mini("PLR",  plr_v,  "#3fb950") +
+                     _mini("RSSI", rssi_v, "#58a6ff") +
+                     _mini("Tput", tput_v, "#a371f7"))
         score_badges += f"""
-<div style="margin-bottom:14px">
+<div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#{rank} {ant}{crown}</span>
     <span style="font-weight:900;font-size:1.3em;color:{col}">{sc:.1f}</span>
   </div>
-  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
-    <div style="background:{col};height:100%;width:{pct}%;border-radius:6px;
-                transition:width .6s ease"></div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:{col};height:100%;width:{pct}%;border-radius:6px"></div>
   </div>
-  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
-    <span>RSSI P10: <strong style="color:#e6edf3">{antenna_metrics[ant]['rssi_p10']:.0f} dBm</strong></span>
-    <span>Throughput: <strong style="color:#e6edf3">{antenna_metrics[ant]['tput_median']/1e6:.2f} Mbps</strong></span>
-    <span>PLR: <strong style="color:#e6edf3">{antenna_metrics[ant]['plr_median']:.1f}%</strong></span>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">{m['rssi_p10']:.0f} dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">{m['tput_median']/1e6:.2f} Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">{m['plr_median']:.1f}%</strong>
   </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px">{breakdown}</div>
 </div>"""
 
     # ── Monta JSON para Chart.js ────────────────────────────────
@@ -754,8 +888,47 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
         "rssi":          rssi_vals,
         "tput_mbps":     [t/1e6 if t else None for t in tput_vals],
         "plr":           plr_vals,
+        "lat_ms":        lat_vals,
+        "has_tput":      has_tput,
         "series":        series_data,
     }, ensure_ascii=False)
+    clock_json = clock_chart_json
+
+    # ── Seções condicionais pré-computadas ────────────────────
+    tput_card_html = (
+        '<div class="card" style="text-align:center">'
+        '<div style="font-size:11px;color:#8b949e;margin-bottom:8px">Throughput Médio</div>'
+        '<canvas id="chartTput" height="220"></canvas></div>'
+        if has_tput else
+        '<div class="card" style="text-align:center">'
+        '<div style="font-size:11px;color:#8b949e;margin-bottom:8px">Latência Ping (ms)</div>'
+        '<canvas id="chartLat" height="220"></canvas></div>'
+    )
+    tput_timeseries_html = (
+        '<h2>Throughput ao Longo do Tempo</h2>'
+        '<div class="chart-card"><canvas id="chartTputTime" height="120"></canvas></div>'
+        if has_tput else ''
+    )
+    clock_section_html = (
+        '<h2>CLOCK — Comparação por Posição/Marcador</h2>'
+        '<div class="grid2">'
+        '<div class="chart-card" style="margin-bottom:0">'
+        '<div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 por marcador</div>'
+        '<canvas id="chartClockRssi" height="200"></canvas></div>'
+        '<div class="chart-card" style="margin-bottom:0">'
+        '<div style="font-size:11px;color:#8b949e;margin-bottom:8px">Latência por marcador (ms)</div>'
+        '<canvas id="chartClockLat" height="200"></canvas></div></div>'
+        if clock_ants_with_data else ''
+    )
+    walk_section_html = (
+        '<h2>WALK — Reconexão (TTR)</h2>'
+        '<div class="card" style="padding:0;overflow:hidden"><table>'
+        '<tr><th>Antena</th><th>TTR mediana</th><th>TTR P90</th>'
+        '<th>Eventos disc.</th><th>Latência mediana</th></tr>'
+        + walk_ttr_rows +
+        '</table></div>'
+        if walk_ants else ''
+    )
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -764,6 +937,7 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Relatório RF — {campaign_name}</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
 body{{background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;
@@ -805,8 +979,10 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 <div class="grid2">
   <div class="card">
     {score_badges}
-    <p style="font-size:10px;color:#484f58;margin-top:8px">
-      Score = {eff_weights['plr']:.0%} PLR + {eff_weights['ttr']:.0%} TTR + {eff_weights['rssi']:.0%} RSSI P10 + {eff_weights['tput']:.0%} Throughput (min-max)
+    <p style="font-size:10px;color:#484f58;margin-top:8px;line-height:1.6">
+      Score = {eff_weights['plr']:.0%} PLR + {eff_weights['ttr']:.0%} TTR + {eff_weights['rssi']:.0%} RSSI P10 + {eff_weights['tput']:.0%} Throughput (min-max)<br>
+      <span style="color:#3d444d">&#9432; Normalização relativa à campanha: 100 = melhor antena testada, 0 = pior.
+      Barras PLR/RSSI/Tput mostram a contribuição de cada eixo.</span>
     </p>
   </div>
   <div class="card" style="display:flex;flex-direction:column;align-items:center">
@@ -853,10 +1029,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
     <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 (dBm)</div>
     <canvas id="chartRssi" height="220"></canvas>
   </div>
-  <div class="card" style="text-align:center">
-    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">Throughput Médio</div>
-    <canvas id="chartTput" height="220"></canvas>
-  </div>
+  {tput_card_html}
   <div class="card" style="text-align:center">
     <div style="font-size:11px;color:#8b949e;margin-bottom:8px">PLR Médio (%)</div>
     <canvas id="chartPlr" height="220"></canvas>
@@ -868,10 +1041,11 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
   <canvas id="chartRssiTime" height="120"></canvas>
 </div>
 
-<h2>Throughput ao Longo do Tempo</h2>
-<div class="chart-card">
-  <canvas id="chartTputTime" height="120"></canvas>
-</div>
+{tput_timeseries_html}
+
+{clock_section_html}
+
+{walk_section_html}
 
 <h2>Validação de Runs</h2>
 <div class="card" style="padding:0;overflow:hidden">
@@ -891,6 +1065,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 <script>
 const D = {chart_json};
 const R = {radar_json};
+const CLOCK = {clock_json};
 
 const FONT = {{color:'#8b949e',size:11}};
 const GRID = 'rgba(48,54,61,0.8)';
@@ -952,15 +1127,26 @@ barChart('chartRssi', D.antennas, [{{
   borderRadius: 4,
 }}], {{ min: -100, max: -40, reverse: false }});
 
-// Throughput
-barChart('chartTput', D.antennas, [{{
-  label: 'Throughput médio (Mbps)',
-  data: D.tput_mbps,
-  backgroundColor: D.colors.map(c => c+'99'),
-  borderColor: D.colors,
-  borderWidth: 2,
-  borderRadius: 4,
-}}]);
+// Throughput ou Latência (condicional)
+if (D.has_tput) {{
+  barChart('chartTput', D.antennas, [{{
+    label: 'Throughput médio (Mbps)',
+    data: D.tput_mbps,
+    backgroundColor: D.colors.map(c => c+'99'),
+    borderColor: D.colors,
+    borderWidth: 2,
+    borderRadius: 4,
+  }}]);
+}} else if (document.getElementById('chartLat')) {{
+  barChart('chartLat', D.antennas, [{{
+    label: 'Latência mediana (ms)',
+    data: D.lat_ms,
+    backgroundColor: D.colors.map(c => c+'99'),
+    borderColor: D.colors,
+    borderWidth: 2,
+    borderRadius: 4,
+  }}], {{ min: 0 }});
+}}
 
 // PLR
 barChart('chartPlr', D.antennas, [{{
@@ -992,9 +1178,22 @@ barChart('chartPlr', D.antennas, [{{
     data: {{ datasets }},
     options: {{
       responsive: true,
-      plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
+      plugins: {{
+        legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }},
+        annotation: {{ annotations: {{
+          ref65: {{ type:'line', yMin:-65, yMax:-65, borderColor:'rgba(210,153,34,0.55)',
+                    borderWidth:1, borderDash:[4,4],
+                    label:{{content:'-65 dBm (limite campo)',display:true,
+                           color:'#d29922',font:{{size:9}},position:'start'}} }},
+          ref75: {{ type:'line', yMin:-75, yMax:-75, borderColor:'rgba(248,81,73,0.45)',
+                    borderWidth:1, borderDash:[4,4],
+                    label:{{content:'-75 dBm (crítico)',display:true,
+                           color:'#f85149',font:{{size:9}},position:'start'}} }},
+        }} }}
+      }},
       scales: {{
-        x: {{ type:'linear', title:{{display:true,text:'Amostra',color:'#8b949e'}},
+        x: {{ type:'linear',
+              title:{{display:true,text:'Janela BURN (×15 s)',color:'#8b949e'}},
               ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
         y: {{ title:{{display:true,text:'RSSI (dBm)',color:'#8b949e'}},
               ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
@@ -1003,8 +1202,8 @@ barChart('chartPlr', D.antennas, [{{
   }});
 }})();
 
-// Time series — Throughput
-(function() {{
+// Time series — Throughput (somente se há dados)
+if (D.has_tput) (function() {{
   const datasets = [];
   Object.entries(D.series).forEach(([ant, s], i) => {{
     if (!s.tput || !s.tput.length) return;
@@ -1033,6 +1232,63 @@ barChart('chartPlr', D.antennas, [{{
       }}
     }}
   }});
+}})();
+
+// CLOCK — Gráficos por marcador
+if (CLOCK && CLOCK.markers && CLOCK.markers.length) (function() {{
+  const markers = CLOCK.markers;
+  const colors  = ['#f0c040','#58a6ff','#3fb950','#f78166','#a371f7','#ffa657'];
+  // RSSI P10 por marcador
+  if (document.getElementById('chartClockRssi')) {{
+    new Chart(document.getElementById('chartClockRssi'), {{
+      type: 'bar',
+      data: {{
+        labels: markers,
+        datasets: CLOCK.datasets.map((d, i) => ({{
+          label: d.ant,
+          data: d.rssi,
+          backgroundColor: d.color + '99',
+          borderColor: d.color,
+          borderWidth: 2,
+          borderRadius: 4,
+        }}))
+      }},
+      options: {{
+        responsive: true,
+        plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
+        scales: {{
+          x: {{ ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+          y: {{ min:-100, max:-40, ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+        }}
+      }}
+    }});
+  }}
+  // Latência por marcador
+  if (document.getElementById('chartClockLat')) {{
+    new Chart(document.getElementById('chartClockLat'), {{
+      type: 'bar',
+      data: {{
+        labels: markers,
+        datasets: CLOCK.datasets.map((d, i) => ({{
+          label: d.ant,
+          data: d.lat,
+          backgroundColor: d.color + '99',
+          borderColor: d.color,
+          borderWidth: 2,
+          borderRadius: 4,
+        }}))
+      }},
+      options: {{
+        responsive: true,
+        plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
+        scales: {{
+          x: {{ ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+          y: {{ min:0, title:{{display:true,text:'ms',color:'#8b949e'}},
+                ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+        }}
+      }}
+    }});
+  }}
 }})();
 </script>
 </body>

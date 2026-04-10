@@ -3,6 +3,7 @@
 #include "csv_log.h"
 #include "state_machine.h"
 #include "supervision.h"
+#include "weblog.h"
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <ESPping.h>
@@ -70,7 +71,15 @@ void profile_b_task(void* param) {
         CsvRow r = csv_make_sample(_rssi(), ok ? 1 : 0, lat, seq++);
         _fill_sup(r);
         csv_ring_push(r);
-        sm_ctx()->samples++;
+        uint32_t n = ++sm_ctx()->samples;
+
+        // Log a cada 10 amostras para não inundar o terminal
+        if (n % 10 == 0 || n == 1) {
+            const char* mode = (st == State::RUNNING_CLOCK) ? "CLOCK" : "WALK";
+            weblog_printf("[%s] #%lu  RSSI %d dBm  ping %s  lat %.0f ms\n",
+                          mode, (unsigned long)n, (int)r.rssi_dbm,
+                          ok ? "OK" : "FAIL", lat);
+        }
 
         // Respeita período exato
         uint32_t elapsed = millis() - t0;

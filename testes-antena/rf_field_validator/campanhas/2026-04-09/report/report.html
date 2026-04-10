@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório RF — 2026-04-09</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;
+     padding:20px;max-width:1100px;margin:auto}
+h1{font-size:1.6em;font-weight:900;color:#f0f6fc;margin-bottom:4px}
+h2{font-size:.75em;text-transform:uppercase;letter-spacing:.12em;color:#8b949e;
+    margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #21262d}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
+.chart-card{background:#161b22;border:1px solid #30363d;border-radius:8px;
+             padding:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#161b22;color:#8b949e;font-size:10px;text-transform:uppercase;
+    letter-spacing:.06em;padding:8px 10px;text-align:left;
+    border-bottom:1px solid #30363d}
+td{padding:8px 10px;border-bottom:1px solid #21262d;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1c2128}
+footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
+        padding-top:16px;border-top:1px solid #21262d}
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div style="margin-bottom:24px">
+  <h1>&#x1F4E1; Relatório RF de Campo</h1>
+  <p style="color:#8b949e;font-size:13px;margin-top:4px">
+    Campanha: <strong style="color:#c9d1d9">2026-04-09</strong>
+    &nbsp;·&nbsp; Gerado em 10/04/2026 01:41
+    &nbsp;·&nbsp; 20 runs &nbsp;·&nbsp; 5 antenas
+  </p>
+</div>
+
+
+<div style="background:linear-gradient(135deg,#1a4731 0%,#161b22 100%);
+            border:1px solid #238636;border-radius:10px;padding:20px 24px;
+            margin-bottom:16px;display:flex;align-items:center;gap:20px">
+  <div style="font-size:3em;line-height:1">🏆</div>
+  <div style="flex:1">
+    <div style="font-size:.72em;text-transform:uppercase;letter-spacing:.12em;
+                color:#3fb950;margin-bottom:2px">Melhor antena</div>
+    <div style="font-size:2.2em;font-weight:900;color:#f0f6fc;
+                line-height:1.1">A53</div>
+    <div style="color:#3fb950;font-weight:700;margin-top:4px">
+      Score RF: 100.0 / 100
+      <span style="color:#484f58;font-weight:400;font-size:.85em;
+                   margin-left:8px">+23.3 pts vs A51</span>
+    </div>
+  </div>
+  <div style="text-align:right;line-height:2;font-size:.85em">
+    <div style="color:#8b949e">RSSI P10
+      <strong style="color:#e6edf3">-63 dBm</strong></div>
+    <div style="color:#8b949e">Throughput
+      <strong style="color:#e6edf3">3.46 Mbps</strong></div>
+    <div style="color:#8b949e">PLR
+      <strong style="color:#e6edf3">0.0%</strong></div>
+    <div style="color:#8b949e">Estabilidade
+      <strong style="color:#e6edf3">σ 1.7 dB</strong></div>
+  </div>
+</div>
+
+<h2>Ranking — Score RF Composto</h2>
+<div class="grid2">
+  <div class="card">
+    
+<div style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#1 A53 👑</span>
+    <span style="font-weight:900;font-size:1.3em;color:#3fb950">100.0</span>
+  </div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#3fb950;height:100%;width:100%;border-radius:6px"></div>
+  </div>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-63 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">3.46 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
+  </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div></div>
+</div>
+<div style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#2 A51</span>
+    <span style="font-weight:900;font-size:1.3em;color:#3fb950">76.7</span>
+  </div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#3fb950;height:100%;width:76%;border-radius:6px"></div>
+  </div>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-66 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">2.96 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
+  </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:50%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">50</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:75%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">75</span></div></div>
+</div>
+<div style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#3 A52</span>
+    <span style="font-weight:900;font-size:1.3em;color:#d29922">67.8</span>
+  </div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#d29922;height:100%;width:67%;border-radius:6px"></div>
+  </div>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-64 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">1.44 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
+  </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:83%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">83</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:0%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">0</span></div></div>
+</div>
+<div style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#4 A41</span>
+    <span style="font-weight:900;font-size:1.3em;color:#d29922">57.2</span>
+  </div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#d29922;height:100%;width:57%;border-radius:6px"></div>
+  </div>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-67 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">1.90 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
+  </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:33%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">33</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:22%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">23</span></div></div>
+</div>
+<div style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#5 A42</span>
+    <span style="font-weight:900;font-size:1.3em;color:#d29922">52.8</span>
+  </div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#d29922;height:100%;width:52%;border-radius:6px"></div>
+  </div>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-69 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">2.41 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
+  </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:0%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">0</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:48%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">48</span></div></div>
+</div>
+    <p style="font-size:10px;color:#484f58;margin-top:8px;line-height:1.6">
+      Score = 40% PLR + 0% TTR + 33% RSSI P10 + 27% Throughput (min-max)<br>
+      <span style="color:#3d444d">&#9432; Normalização relativa à campanha: 100 = melhor antena testada, 0 = pior.
+      Barras PLR/RSSI/Tput mostram a contribuição de cada eixo.</span>
+    </p>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;align-items:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px;align-self:flex-start">
+      Perfil multidimensional</div>
+    <canvas id="chartRadar" style="max-height:280px"></canvas>
+  </div>
+</div>
+
+<h2>Tabela Comparativa</h2>
+<div class="card" style="padding:0;overflow:hidden">
+<table>
+  <tr>
+    <th>Antena</th>
+    <th>RSSI P10</th>
+    <th>Throughput</th>
+    <th>PLR</th>
+    <th>Estabilidade</th>
+    <th>Score</th>
+  </tr>
+  <tr><td style='font-weight:700;color:#e6edf3'>🥇 A53</td><td style="background:#1a4731;color:#3fb950;font-weight:700">-63 dBm</td><td style="background:#1a4731;color:#3fb950;font-weight:700">3.46 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.7 dB</td><td style="background:#1a4731;color:#3fb950;font-weight:700">100.0</td></tr><tr><td style='font-weight:700;color:#e6edf3'>🥈 A51</td><td style="background:#2d2016;color:#d29922;font-weight:700">-66 dBm</td><td style="background:#1a4731;color:#3fb950;font-weight:700">2.96 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.6 dB</td><td style="background:#2d2016;color:#d29922;font-weight:700">76.7</td></tr><tr><td style='font-weight:700;color:#e6edf3'>🥉 A52</td><td style="background:#1a4731;color:#3fb950;font-weight:700">-64 dBm</td><td style="background:#3d1616;color:#f85149;font-weight:700">1.44 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.7 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">67.8</td></tr><tr><td style='font-weight:700;color:#e6edf3'>#4 A41</td><td style="background:#2d2016;color:#d29922;font-weight:700">-67 dBm</td><td style="background:#3d1616;color:#f85149;font-weight:700">1.90 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#1a4731;color:#3fb950;font-weight:700">σ 1.4 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">57.2</td></tr><tr><td style='font-weight:700;color:#e6edf3'>#5 A42</td><td style="background:#3d1616;color:#f85149;font-weight:700">-69 dBm</td><td style="background:#2d2016;color:#d29922;font-weight:700">2.41 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.6 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">52.8</td></tr>
+</table>
+</div>
+
+<h2>Distribuição RSSI por Antena</h2>
+<div class="card">
+  <div style="display:flex;gap:20px;font-size:10px;color:#484f58;
+              margin-bottom:12px;align-items:center">
+    <span>&#9646; Range total</span>
+    <span style="opacity:.8">&#9646; P10 – P90</span>
+    <span style="background:#f0f6fc;width:3px;height:10px;display:inline-block"></span>
+    <span>Mediana</span>
+  </div>
+  
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A53</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:68.8%;width:25.0%;height:100%;
+                background:#58a6ff22;border-radius:4px"></div>
+    <div style="position:absolute;left:68.8%;width:25.0%;height:100%;
+                background:#58a6ff88"></div>
+    <div style="position:absolute;left:81.2%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-61 dBm</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A51</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:50.0%;width:31.200000000000003%;height:100%;
+                background:#3fb95022;border-radius:4px"></div>
+    <div style="position:absolute;left:50.0%;width:31.200000000000003%;height:100%;
+                background:#3fb95088"></div>
+    <div style="position:absolute;left:68.8%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-63 dBm</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A52</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:62.5%;width:18.700000000000003%;height:100%;
+                background:#f7816622;border-radius:4px"></div>
+    <div style="position:absolute;left:62.5%;width:18.700000000000003%;height:100%;
+                background:#f7816688"></div>
+    <div style="position:absolute;left:68.8%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-63 dBm</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A41</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:43.8%;width:12.400000000000006%;height:100%;
+                background:#d2992222;border-radius:4px"></div>
+    <div style="position:absolute;left:43.8%;width:12.400000000000006%;height:100%;
+                background:#d2992288"></div>
+    <div style="position:absolute;left:43.8%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-67 dBm</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A42</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:31.2%;width:18.8%;height:100%;
+                background:#a371f722;border-radius:4px"></div>
+    <div style="position:absolute;left:31.2%;width:18.8%;height:100%;
+                background:#a371f788"></div>
+    <div style="position:absolute;left:37.5%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-68 dBm</span>
+</div>
+  <div style="display:flex;justify-content:space-between;
+              font-size:10px;color:#484f58;margin-top:4px">
+    <span>-74 dBm</span><span>-58 dBm</span>
+  </div>
+</div>
+
+<h2>Comparação de Métricas</h2>
+<div class="grid3">
+  <div class="card" style="text-align:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 (dBm)</div>
+    <canvas id="chartRssi" height="220"></canvas>
+  </div>
+  <div class="card" style="text-align:center"><div style="font-size:11px;color:#8b949e;margin-bottom:8px">Throughput Médio</div><canvas id="chartTput" height="220"></canvas></div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px">PLR Médio (%)</div>
+    <canvas id="chartPlr" height="220"></canvas>
+  </div>
+</div>
+
+<h2>RSSI ao Longo do Tempo</h2>
+<div class="chart-card">
+  <canvas id="chartRssiTime" height="120"></canvas>
+</div>
+
+<h2>Throughput ao Longo do Tempo</h2><div class="chart-card"><canvas id="chartTputTime" height="120"></canvas></div>
+
+<h2>CLOCK — Comparação por Posição/Marcador</h2><div class="grid2"><div class="chart-card" style="margin-bottom:0"><div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 por marcador</div><canvas id="chartClockRssi" height="200"></canvas></div><div class="chart-card" style="margin-bottom:0"><div style="font-size:11px;color:#8b949e;margin-bottom:8px">Latência por marcador (ms)</div><canvas id="chartClockLat" height="200"></canvas></div></div>
+
+<h2>WALK — Reconexão (TTR)</h2><div class="card" style="padding:0;overflow:hidden"><table><tr><th>Antena</th><th>TTR mediana</th><th>TTR P90</th><th>Eventos disc.</th><th>Latência mediana</th></tr>
+<tr>
+  <td style="font-weight:700;color:#d29922">A41</td>
+  <td>—</td>
+  <td>—</td>
+  <td>0</td>
+  <td>3 ms</td>
+</tr></table></div>
+
+<h2>Validação de Runs</h2>
+<div class="card" style="padding:0;overflow:hidden">
+<table>
+  <tr>
+    <th>Arquivo</th><th>Antena</th><th>Modo</th><th>Run</th>
+    <th>Amostras</th><th>Status</th><th>Avisos</th>
+  </tr>
+  
+<tr>
+  <td>BURN_A41_MESA_DES_R01.csv</td>
+  <td>A41</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R02.csv</td>
+  <td>A41</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R03.csv</td>
+  <td>A41</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R04.csv</td>
+  <td>A41</td><td>BURN</td><td>R04</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A42_MESA_DES_R01.csv</td>
+  <td>A42</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A42_MESA_DES_R02.csv</td>
+  <td>A42</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A42_MESA_DES_R03.csv</td>
+  <td>A42</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R01.csv</td>
+  <td>A51</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R02.csv</td>
+  <td>A51</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R03.csv</td>
+  <td>A51</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A52_MESA_DES_R01.csv</td>
+  <td>A52</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A52_MESA_DES_R02.csv</td>
+  <td>A52</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A52_MESA_DES_R03.csv</td>
+  <td>A52</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A53_MESA_DES_R01.csv</td>
+  <td>A53</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A53_MESA_DES_R02.csv</td>
+  <td>A53</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A53_MESA_DES_R03.csv</td>
+  <td>A53</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>CLOCK_A41_MESA_DES_R01.csv</td>
+  <td>A41</td><td>CLOCK</td><td>R01</td>
+  <td>75</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>CLOCK_A41_MESA_DES_R02.csv</td>
+  <td>A41</td><td>CLOCK</td><td>R02</td>
+  <td>58</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>WALK_A41_MESA_DES_R01.csv</td>
+  <td>A41</td><td>WALK</td><td>R01</td>
+  <td>53</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>WALK_A41_TETO_LIG_R01.csv</td>
+  <td>A41</td><td>WALK</td><td>R01</td>
+  <td>36</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+</table>
+</div>
+
+<footer>
+  RF Field Validator N2.1 · Terasite Tecnologia · 10/04/2026 01:41
+</footer>
+
+<script>
+const D = {"antennas": ["A53", "A51", "A52", "A41", "A42"], "colors": ["#58a6ff", "#3fb950", "#f78166", "#d29922", "#a371f7"], "scores": [100.0, 76.7, 67.8, 57.2, 52.8], "rssi": [-63, -66, -64, -67, -69], "tput_mbps": [3.461936, 2.960584, 1.435232, 1.896448, 2.41008], "plr": [0.0, 0.0, 0.0, 0.0, 0.0], "lat_ms": [null, null, null, 2.93, null], "has_tput": true, "series": {"A53": {"ts": [484332, 499382, 514429, 529482, 545465, 560518, 575533, 590624, 606598, 621642, 636703, 651757, 48783, 63842, 78890, 93943, 110017, 125073, 140126, 155382, 171361, 186613, 201870, 216929, 986659, 1004685, 1022736, 1040783, 1059736, 1077748, 1095798, 1113842, 1132775, 1150783, 1168817, 1186858], "rssi": [-64, -61, -59, -59, -61, -61, -63, -60, -59, -61, -58, -60, -62, -63, -63, -59, -63, -63, -59, -63, -59, -59, -62, -62, -59, -58, -59, -58, -59, -55, -58, -56, -57, -57, -57, -57], "tput": [3593824, 3628232, 3644616, 3677384, 3652808, 3692128, 1906272, 3684760, 3668376, 3662640, 3617584, 3592192, 3535664, 3541400, 3510272, 3539760, 2950752, 3545496, 3496344, 3392304, 3553688, 3545496, 3448008, 3461936, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A51": {"ts": [1253594, 1271628, 1289667, 1307702, 1326613, 1344642, 1362680, 1380706, 1399653, 1417690, 1435733, 1453739, 280267, 295310, 310353, 325504, 341443, 357068, 372125, 387616, 403563, 418594, 433605, 448620, 482101, 497816, 512936, 528382, 544462, 559653, 574702, 589748, 606242, 621467, 637438, 653591], "rssi": [-59, -59, -60, -59, -56, -56, -56, -55, -56, -59, -63, -58, -62, -63, -61, -62, -61, -66, -63, -62, -63, -63, -69, -70, -68, -67, -67, -64, -65, -66, -64, -64, -67, -68, -61, -64], "tput": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3362816, 3385752, 3481600, 3427528, 3098208, 3483232, 3514368, 3118688, 3594648, 3094936, 3453744, 3253856, 3312024, 3318576, 2980248, 2170056, 2354376, 2960584, 3510272, 3404592, 2172512, 3352160, 3117056, 2803296]}, "A52": {"ts": [234190, 249312, 264351, 279419, 295501, 310517, 327273, 342607, 358544, 373573, 388781, 403837, 861566, 877675, 892898, 908107, 924268, 940108, 955161, 971269, 987415, 1002456, 1018258, 1033601, 1500412, 1518415, 1536450, 1554482, 1573439, 1591478, 1609518, 1627551, 1646455, 1664461, 1682499, 1700535], "rssi": [-67, -67, -67, -65, -69, -65, -64, -61, -63, -60, -61, -62, -61, -63, -61, -64, -63, -64, -63, -66, -64, -61, -62, -65, -54, -57, -53, -59, -55, -59, -55, -54, -55, -53, -54, -55], "tput": [1973448, 1629384, 2304408, 1342664, 2194632, 1435232, 1328736, 1883336, 3028576, 2594400, 2949120, 2522312, 2617344, 2341272, 993688, 1400008, 1529440, 3006464, 2700080, 3002368, 3617584, 3174400, 2202008, 1287776, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A41": {"ts": [39347, 54408, 70000, 85325, 101304, 116557, 132878, 148100, 164076, 179129, 194180, 209233, 240600, 255925, 270980, 286032, 302008, 317365, 332457, 347677, 364973, 380084, 395292, 410381, 85686, 101837, 116888, 132101, 148079, 163129, 178181, 193217, 209309, 224364, 239619, 254677, 71836, 86861, 102108, 117128, 133049, 148225, 163278, 178313, 194271, 209528, 224577, 239636], "rssi": [-66, -65, -69, -70, -61, -62, -65, -66, -66, -64, -64, -67, -67, -64, -64, -64, -64, -63, -63, -63, -62, -63, -63, -63, -74, -73, -72, -68, -67, -66, -67, -67, -64, -61, -65, -67, -73, -64, -68, -68, -68, -67, -68, -68, -64, -64, -62, -65], "tput": [1585968, 2047176, 1800600, 2917168, 2609968, 3022848, 3498800, 3348064, 2524768, 1896448, 2488728, 1759640, 2706632, 855240, 1015808, 2127456, 2483808, 1492576, 1943960, 2842624, 2146304, 805272, 2828696, 1863680, 1046112, 3528288, 3022848, 2592768, 3156376, 3627416, 3181768, 3724080, 2982704, 3639704, 3034312, 3052336, 2489544, 3162112, 3086744, 3139168, 2973696, 3076096, 3038408, 3690496, 2789376, 2744320, 1611360, 3242392]}, "A42": {"ts": [1774197, 1792214, 1810255, 1828292, 1847232, 1865277, 1883314, 1901353, 1920255, 1938308, 1956321, 1971356, 1997899, 2012989, 2028031, 2043096, 2060126, 2075450, 2090509, 2105578, 2121634, 2136891, 2151949, 2167001, 2208710, 2223729, 2239584, 2254662, 2271691, 2288122, 2304249, 2320636, 2336585, 2351635, 2366693, 2381741], "rssi": [-65, -68, -68, -66, -68, -66, -68, -64, -69, -67, -70, -67, -71, -68, -68, -68, -68, -68, -68, -66, -68, -68, -68, -69, -64, -64, -69, -65, -66, -66, -71, -66, -66, -66, -63, -66], "tput": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3318576, 1840736, 3380832, 3362816, 3294000, 3303008, 2591128, 3334144, 3279256, 3395584, 3335776, 3353800, 2763160, 3289088, 1841560, 1941504, 1235352, 2464968, 2410080, 2910616, 1053488, 2137288, 2877848, 3362816, 3366088]}}};
+const R = {"labels": ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"], "datasets": [{"label": "A53", "data": [100.0, 100.0, 100.0, 0.0, 100.0], "color": "#58a6ff"}, {"label": "A51", "data": [50.0, 75.3, 100.0, 8.4, 45.8], "color": "#3fb950"}, {"label": "A52", "data": [83.3, 0.0, 100.0, 0.2, 79.6], "color": "#f78166"}, {"label": "A41", "data": [33.3, 22.8, 100.0, 100.0, 69.7], "color": "#d29922"}, {"label": "A42", "data": [0.0, 48.1, 100.0, 10.9, 0.0], "color": "#a371f7"}]};
+const CLOCK = {"markers": ["CASE", "LIVRE", "SEM_MARK"], "datasets": [{"ant": "A41", "color": "#d29922", "rssi": [-60, -63, -67], "lat": [2.94, 2.95, 2.94], "plr": [0.0, 0.0, 0.0]}]};
+
+const FONT = {color:'#8b949e',size:11};
+const GRID = 'rgba(48,54,61,0.8)';
+Chart.defaults.color = '#8b949e';
+Chart.defaults.font.family = 'system-ui,sans-serif';
+
+// Radar chart
+new Chart(document.getElementById('chartRadar'), {
+  type: 'radar',
+  data: {
+    labels: R.labels,
+    datasets: R.datasets.map(d => ({
+      label: d.label,
+      data: d.data,
+      borderColor: d.color,
+      backgroundColor: d.color + '22',
+      pointBackgroundColor: d.color,
+      pointRadius: 4,
+      borderWidth: 2,
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color:'#c9d1d9', font:{size:11} } } },
+    scales: {
+      r: {
+        min: 0, max: 100,
+        ticks: { display: false },
+        grid: { color: GRID },
+        pointLabels: { color:'#8b949e', font:{size:11} },
+        angleLines: { color: GRID },
+      }
+    }
+  }
+});
+
+function barChart(id, labels, datasets, opts={}) {
+  return new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#c9d1d9',font:{size:11} } } },
+      scales: {
+        x: { ticks: { color:'#8b949e',font:{size:10} }, grid:{ color:GRID } },
+        y: { ...opts, ticks: { color:'#8b949e',font:{size:10} }, grid:{ color:GRID } }
+      }
+    }
+  });
+}
+
+// RSSI P10
+barChart('chartRssi', D.antennas, [{
+  label: 'RSSI P10 (dBm)',
+  data: D.rssi,
+  backgroundColor: D.colors.map(c => c+'99'),
+  borderColor: D.colors,
+  borderWidth: 2,
+  borderRadius: 4,
+}], { min: -100, max: -40, reverse: false });
+
+// Throughput ou Latência (condicional)
+if (D.has_tput) {
+  barChart('chartTput', D.antennas, [{
+    label: 'Throughput médio (Mbps)',
+    data: D.tput_mbps,
+    backgroundColor: D.colors.map(c => c+'99'),
+    borderColor: D.colors,
+    borderWidth: 2,
+    borderRadius: 4,
+  }]);
+} else if (document.getElementById('chartLat')) {
+  barChart('chartLat', D.antennas, [{
+    label: 'Latência mediana (ms)',
+    data: D.lat_ms,
+    backgroundColor: D.colors.map(c => c+'99'),
+    borderColor: D.colors,
+    borderWidth: 2,
+    borderRadius: 4,
+  }], { min: 0 });
+}
+
+// PLR
+barChart('chartPlr', D.antennas, [{
+  label: 'PLR médio (%)',
+  data: D.plr,
+  backgroundColor: D.colors.map(c => c+'99'),
+  borderColor: D.colors,
+  borderWidth: 2,
+  borderRadius: 4,
+}], { min: 0 });
+
+// Time series — RSSI
+(function() {
+  const datasets = [];
+  Object.entries(D.series).forEach(([ant, s], i) => {
+    if (!s.rssi || !s.rssi.length) return;
+    datasets.push({
+      label: ant,
+      data: s.rssi.map((v, j) => ({x: j, y: v})),
+      borderColor: D.colors[i] || '#58a6ff',
+      backgroundColor: 'transparent',
+      pointRadius: 3,
+      tension: 0.3,
+    });
+  });
+  if (!datasets.length) return;
+  new Chart(document.getElementById('chartRssiTime'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color:'#c9d1d9',font:{size:11} } },
+        annotation: { annotations: {
+          ref65: { type:'line', yMin:-65, yMax:-65, borderColor:'rgba(210,153,34,0.55)',
+                    borderWidth:1, borderDash:[4,4],
+                    label:{content:'-65 dBm (limite campo)',display:true,
+                           color:'#d29922',font:{size:9},position:'start'} },
+          ref75: { type:'line', yMin:-75, yMax:-75, borderColor:'rgba(248,81,73,0.45)',
+                    borderWidth:1, borderDash:[4,4],
+                    label:{content:'-75 dBm (crítico)',display:true,
+                           color:'#f85149',font:{size:9},position:'start'} },
+        } }
+      },
+      scales: {
+        x: { type:'linear',
+              title:{display:true,text:'Janela BURN (×15 s)',color:'#8b949e'},
+              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+        y: { title:{display:true,text:'RSSI (dBm)',color:'#8b949e'},
+              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+      }
+    }
+  });
+})();
+
+// Time series — Throughput (somente se há dados)
+if (D.has_tput) (function() {
+  const datasets = [];
+  Object.entries(D.series).forEach(([ant, s], i) => {
+    if (!s.tput || !s.tput.length) return;
+    datasets.push({
+      label: ant,
+      data: s.tput.map((v, j) => ({x: j, y: v/1e6})),
+      borderColor: D.colors[i] || '#58a6ff',
+      backgroundColor: 'transparent',
+      pointRadius: 3,
+      tension: 0.3,
+    });
+  });
+  if (!datasets.length) return;
+  new Chart(document.getElementById('chartTputTime'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#c9d1d9',font:{size:11} } } },
+      scales: {
+        x: { type:'linear', title:{display:true,text:'Amostra',color:'#8b949e'},
+              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+        y: { title:{display:true,text:'Throughput (Mbps)',color:'#8b949e'},
+              min: 0,
+              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+      }
+    }
+  });
+})();
+
+// CLOCK — Gráficos por marcador
+if (CLOCK && CLOCK.markers && CLOCK.markers.length) (function() {
+  const markers = CLOCK.markers;
+  const colors  = ['#f0c040','#58a6ff','#3fb950','#f78166','#a371f7','#ffa657'];
+  // RSSI P10 por marcador
+  if (document.getElementById('chartClockRssi')) {
+    new Chart(document.getElementById('chartClockRssi'), {
+      type: 'bar',
+      data: {
+        labels: markers,
+        datasets: CLOCK.datasets.map((d, i) => ({
+          label: d.ant,
+          data: d.rssi,
+          backgroundColor: d.color + '99',
+          borderColor: d.color,
+          borderWidth: 2,
+          borderRadius: 4,
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color:'#c9d1d9',font:{size:11} } } },
+        scales: {
+          x: { ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+          y: { min:-100, max:-40, ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+        }
+      }
+    });
+  }
+  // Latência por marcador
+  if (document.getElementById('chartClockLat')) {
+    new Chart(document.getElementById('chartClockLat'), {
+      type: 'bar',
+      data: {
+        labels: markers,
+        datasets: CLOCK.datasets.map((d, i) => ({
+          label: d.ant,
+          data: d.lat,
+          backgroundColor: d.color + '99',
+          borderColor: d.color,
+          borderWidth: 2,
+          borderRadius: 4,
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color:'#c9d1d9',font:{size:11} } } },
+        scales: {
+          x: { ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+          y: { min:0, title:{display:true,text:'ms',color:'#8b949e'},
+                ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+        }
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

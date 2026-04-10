@@ -517,8 +517,8 @@ static void _handle_cmd() {
         _try_ntp_quick();
         digitalWrite(PIN_LED, HIGH);
         String fn = csv_current_filename();
-        String m = String(cold ? "WALK cold: " : "WALK: ") + fn;
-        _json_reply(true, m.c_str());
+        weblog_printf("[OK] START_WALK%s — %s\n", cold ? " cold" : "", fn.c_str());
+        _json_reply(true, (String(cold ? "WALK cold: " : "WALK: ") + fn).c_str());
         return;
     }
 
@@ -527,8 +527,9 @@ static void _handle_cmd() {
         if (err) { _json_reply(false, err); return; }
         _try_ntp_quick();
         digitalWrite(PIN_LED, HIGH);
-        String m = String("CLOCK: ") + csv_current_filename();
-        _json_reply(true, m.c_str());
+        String fn = csv_current_filename();
+        weblog_printf("[OK] START_CLOCK — %s\n", fn.c_str());
+        _json_reply(true, (String("CLOCK: ") + fn).c_str());
         return;
     }
 
@@ -538,14 +539,16 @@ static void _handle_cmd() {
         if (err) { _json_reply(false, err); return; }
         _try_ntp_quick();
         digitalWrite(PIN_LED, HIGH);
-        String m = String(three ? "BURN 3x60: " : "BURN: ") + csv_current_filename();
-        _json_reply(true, m.c_str());
+        String fn = csv_current_filename();
+        weblog_printf("[OK] START_BURN%s — %s\n", three ? " 3x60" : "", fn.c_str());
+        _json_reply(true, (String(three ? "BURN 3x60: " : "BURN: ") + fn).c_str());
         return;
     }
 
     if (action == "stop") {
         const char* err = sm_cmd_stop();
         if (err) { _json_reply(false, err); return; }
+        weblog_println("[OK] STOP — flush em andamento...");
         _json_reply(true, "Flush em andamento...");
         return;
     }
@@ -555,8 +558,8 @@ static void _handle_cmd() {
         if (label.isEmpty()) { _json_reply(false, "Label vazio"); return; }
         const char* err = sm_cmd_mark(label.c_str());
         if (err) { _json_reply(false, err); return; }
-        String m = String("MARK=") + label;
-        _json_reply(true, m.c_str());
+        weblog_printf("[OK] MARK=%s\n", label.c_str());
+        _json_reply(true, (String("MARK=") + label).c_str());
         return;
     }
 
