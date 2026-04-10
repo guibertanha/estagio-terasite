@@ -11,6 +11,7 @@ no gateway Frotall FRITG01LTE instalado em máquinas de construção civil.
 - **Nunca** incluir `Co-Authored-By` em commits — código aparece como exclusivo do autor.
 - Commits em português, concisos, sem preamble de IA.
 - Não criar arquivos desnecessários. Não refatorar código além do pedido.
+- Não usar outro AI (Codex, ChatGPT) para editar os mesmos arquivos em paralelo — contexto se fragmenta e gera conflito. Se usar outro AI para algo pontual, commitar antes de trocar.
 
 ---
 
@@ -141,9 +142,29 @@ marker, block, notes, crc16=XXXX
 Pipeline: `ingest_file()` → `validate_run()` → `aggregate_*()` → `consolidate_*()` → `compute_scores()` → `render_report()`
 
 - `compute_scores()` retorna `(scores_dict, eff_weights)` — TTR redistribuído se sem WALK
-- Pesos default: PLR 30% / TTR 25% / RSSI 25% / Tput 20%
-- Score 0–100 min-max normalizado
+- Pesos default: PLR 40% / TTR 0% (sem WALK com desconexão) / RSSI 33% / Tput 27%
+- Score 0–100 **relativo à campanha**: 100 = melhor antena testada, 0 = pior. Não é absoluto.
+- **INT precisa estar na mesma pasta de campanha** para o score ser comparativo com as externas
 - Relatório HTML: banner vencedor, radar 5 eixos, heatmap, distribuição RSSI, time series
+- Time series usa **apenas amostras BURN** (WALK e CLOCK têm cadências diferentes — misturar distorce o gráfico)
+- Ranking mostra mini-barras PLR/RSSI/Tput por antena (breakdown de contribuição por eixo)
+- Linhas de referência no gráfico RSSI: -65 dBm (amarelo, limite campo) e -75 dBm (vermelho, crítico)
+
+### Estrutura de campanhas
+
+```
+campanhas/
+└── YYYY-MM-DD/          ← uma pasta por dia de teste
+    ├── BURN_A53_MESA_DES_R01.csv
+    ├── WALK_A41_TETO_LIG_R01.csv
+    └── report/
+        ├── report.html
+        └── summary.csv
+```
+
+- Nome de arquivo: `[MODO]_[ANT]_[LOC]_[COND]_R[NN].csv`
+- LOC: MESA, TETO, CAMPO, etc. | COND: DES (desligado), LIG (ligado), RUN (motor girando)
+- Parser procura CSVs na pasta direta ou recursivo em subpastas
 
 ### Fluxo de campo
 
@@ -162,12 +183,68 @@ python tools/sync.py <IP_ESP32>          # baixa CSVs + roda parser
 
 ---
 
+## Antenas e resultados
+
+| Antena | Tipo | Status |
+|--------|------|--------|
+| A41 | Externa | Testada bancada 09/04 — score 57.2 |
+| A42 | Externa | Testada bancada 09/04 — score 52.8 |
+| A51 | Externa | Testada bancada 09/04 — score 76.7 |
+| A52 | Externa | Testada bancada 09/04 — score 67.8 |
+| A53 | Externa | Testada bancada 09/04 — score 100.0 (vencedora) |
+| INT | Interna | **Ainda não testada** — é o baseline de comparação |
+
+Resultado bancada 09/04: A53 venceu com RSSI P10 -63 dBm, throughput 3.46 Mbps, PLR 0%.
+Score só faz sentido quando INT estiver na mesma campanha.
+
+---
+
+## Instrumentação disponível
+
+### Analisador de espectro — SA6 (35–6200 MHz)
+- Manual em `datasheets/instrumentacao/SA6_manual.pdf`
+- Piso de ruído: -100 dBm (até 3 GHz), -95 dBm (3–4.5 GHz)
+- Gerador de rastreamento interno: 35–6200 MHz, -15 a -25 dBm
+- Uso no campo: varredura em 2.4 GHz **antes** e **depois** de ligar o motor
+  - Se o piso de ruído subir → motor gera EMI que compete com Wi-Fi
+  - Isso explica divergência entre bancada (ambiente limpo) e campo (com motor)
+- **Não é medidor de EMI** — mede RF intencional, não campo irradiado do motor
+
+### Medidor de EMI
+- Não necessário para o objetivo do projeto (comparar antenas)
+- O efeito da EMI já é capturado indiretamente pelo firmware (RSSI P10, PLR com motor ON vs OFF)
+
+---
+
+## Cronograma do estágio (7 meses)
+
+| Mês | Atividade | Status |
+|-----|-----------|--------|
+| 2–3 | Testes de bancada das antenas | Em andamento (só A41–A53, falta INT) |
+| 3 | Análise de resultados de bancada | Parcial (relatório automático gerado) |
+| 4 | Testes em campo | Próxima semana |
+| 4 | Análise de resultados de campo | Pendente |
+| 4–5 | Otimização e ajuste no firmware | Pendente |
+| 5 | Testes de bancada após otimização | Pendente |
+| 6 | Testes de campo após otimização | Pendente |
+| 6–7 | Estudo comparativo e relatório final | Pendente |
+
+Estágio iniciado ~fevereiro 2026. Atualmente no mês 4 (abril 2026). Margem apertada para campo.
+
+---
+
 ## Próxima fase (futura)
 
 Melhoria do firmware oficial Frotall em `c:/Users/Guilherme Bertanha/Downloads/frotall-firmware-3.15.0.debug/`
 
-Problemas identificados: `std::string` em tasks FreeRTOS, sem validação de `xTaskCreate`/semáforos, race conditions no BLE.
-Abordagem: branch separada, por módulo, um de cada vez.
+Problemas identificados:
+- `std::string` em tasks FreeRTOS — heap sem proteção em contexto de interrupção
+- Sem validação de `xTaskCreate` / semáforos — crash silencioso em stack overflow
+- Race conditions no BLE
+
+Abordagem: branch separada, por módulo, um de cada vez. Nunca tocar produção diretamente.
+Contexto: firmware funcional em campo com clientes reais — risco de regressão alto.
+Não abordar este tema com os chefes como "encontrei problemas" — abordar como "posso contribuir com melhorias de robustez".
 
 ---
 
