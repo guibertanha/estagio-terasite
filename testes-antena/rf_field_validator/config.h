@@ -13,7 +13,10 @@
 
 // ── Alvo TCP para throughput (Perfil A) ──────────────────────
 // Rodar no notebook: python tools/tcp_sink.py
-#define TCP_TARGET_HOST  "192.168.x.x"   // IP do notebook na rede de casa
+// No campo: verifique o IP do notebook com `ipconfig` (Windows) ou `ip a` (Linux).
+// Cenário típico: notebook no Hotspot do celular, ESP32 a 3-10 m da máquina.
+// Use watch.py para gerenciar o tcp_sink automaticamente durante a sessão.
+#define TCP_TARGET_HOST  "192.168.x.x"   // << ALTERAR antes de ir ao campo
 #define TCP_TARGET_PORT  5201
 #define TCP_BUF_SIZE     4096             // bytes por write (maior = throughput mais preciso)
 

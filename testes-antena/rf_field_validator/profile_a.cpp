@@ -78,7 +78,7 @@ static uint8_t _tcp_buf[TCP_BUF_SIZE];
 
 static uint32_t _run_tput_phase() {
     WiFiClient client;
-    if (!client.connect(TCP_TARGET_HOST, TCP_TARGET_PORT)) {
+    if (!client.connect(g_tcp_host, TCP_TARGET_PORT)) {
         // Servidor tcp_sink.py não disponível — registra 0 e espera o tempo normal
         vTaskDelay(pdMS_TO_TICKS(TPUT_PHASE_MS));
         return 0;

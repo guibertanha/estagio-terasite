@@ -21,11 +21,14 @@ enum class State : uint8_t {
 // ── Modos (para nome de arquivo e CSV) ───────────────────────
 enum class RunMode : uint8_t { NONE, WALK, CLOCK, BURN };
 
+// ── Alvo TCP configurável em runtime (padrão = TCP_TARGET_HOST de config.h) ─
+extern char g_tcp_host[64];
+
 // ── Contexto do run ativo ────────────────────────────────────
 struct RunContext {
-    char antenna[4];     // ex: "A4"
-    char location[6];    // ex: "TETO"
-    char condition[4];   // ex: "OFF"
+    char antenna[6];     // ex: "A5.2"
+    char location[8];    // ex: "CAMPO"
+    char condition[5];   // ex: "RUN"
     RunMode mode;
     uint8_t  run_number; // 1..99 (incrementa por arquivo CSV)
     uint32_t start_ms;

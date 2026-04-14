@@ -4,9 +4,12 @@
 #include <Preferences.h>
 
 // ── Estado global ─────────────────────────────────────────────
-static State     _state = State::IDLE;
+static State      _state = State::IDLE;
 static RunContext _ctx   = {};
 static Preferences _prefs;
+
+// ── Alvo TCP configurável em runtime ─────────────────────────
+char g_tcp_host[64] = TCP_TARGET_HOST;
 
 // ── boot_count persistente via NVS ───────────────────────────
 static uint32_t _load_boot_count() {
@@ -17,14 +20,12 @@ static uint32_t _load_boot_count() {
     return bc;
 }
 
-// Run number agora determinado pelo filesystem (não NVS),
-// para que arquivos apagados liberem o número.
-
-// ── Helpers de validação ─────────────────────────────────────
+// ── Helpers de validação ──────────────────────────────────────
+// Aceita alfanumérico, underscore e ponto (ex: A5.2, 10M)
 static bool _valid_id(const char* s, uint8_t maxlen) {
     if (!s || strlen(s) == 0 || strlen(s) > maxlen) return false;
     for (const char* p = s; *p; p++) {
-        if (!isalnum(*p) && *p != '_') return false;
+        if (!isalnum(*p) && *p != '_' && *p != '.') return false;
     }
     return true;
 }
@@ -40,8 +41,8 @@ void sm_init() {
     _ctx.boot_count = _load_boot_count();
 }
 
-State sm_state()      { return _state; }
-RunContext* sm_ctx()  { return &_ctx; }
+State sm_state()     { return _state; }
+RunContext* sm_ctx() { return &_ctx; }
 
 // CONFIG <antena> <local> <condicao>
 const char* sm_cmd_config(const char* antenna, const char* location, const char* condition) {
@@ -50,12 +51,10 @@ const char* sm_cmd_config(const char* antenna, const char* location, const char*
         _state == State::RUNNING_BURN  ||
         _state == State::RUNNING_BURN3)
         return "ERR_RUN_ACTIVE: pare o run antes de reconfigurar";
-    // FLUSHING é permitido: a task de log chama sm_cmd_config após
-    // csv_close_run() para retornar ao estado READY.
 
-    if (!_valid_id(antenna,  3)) return "ERR_INVALID: antena deve ser alfanum, max 3 chars (ex: A4)";
-    if (!_valid_id(location, 5)) return "ERR_INVALID: local deve ser alfanum, max 5 chars (ex: TETO)";
-    if (!_valid_id(condition,3)) return "ERR_INVALID: condicao deve ser alfanum, max 3 chars (ex: OFF)";
+    if (!_valid_id(antenna,  5)) return "ERR_INVALID: antena max 5 chars (ex: A5.2)";
+    if (!_valid_id(location, 7)) return "ERR_INVALID: local max 7 chars (ex: CAMPO)";
+    if (!_valid_id(condition,4)) return "ERR_INVALID: condicao max 4 chars (ex: RUN)";
 
     strncpy(_ctx.antenna,   antenna,   sizeof(_ctx.antenna)   - 1);
     strncpy(_ctx.location,  location,  sizeof(_ctx.location)  - 1);
@@ -65,33 +64,25 @@ const char* sm_cmd_config(const char* antenna, const char* location, const char*
     _ctx.condition[sizeof(_ctx.condition)-1] = '\0';
 
     _state = State::READY;
-    return nullptr; // sucesso
+    return nullptr;
 }
 
 // START_WALK [--cold]
 const char* sm_cmd_start_walk(bool cold) {
     if (_state != State::READY)
         return "ERR_NOT_READY: execute CONFIG primeiro";
-    if (_state == State::RUNNING_WALK ||
-        _state == State::RUNNING_CLOCK ||
-        _state == State::RUNNING_BURN  ||
-        _state == State::RUNNING_BURN3)
-        return "ERR_RUN_ACTIVE: já há um run em andamento";
     if (!cold && !_wifi_up())
-        return "ERR_NO_WIFI: sem Wi-Fi. Use START_WALK --cold para ignorar";
+        return "ERR_NO_WIFI: sem Wi-Fi. Use WALK cold para ignorar";
 
-    _ctx.mode       = RunMode::WALK;
-    _ctx.cold_start = cold;
-    _ctx.samples    = 0;
-    _ctx.active_block  = 0;
+    _ctx.mode             = RunMode::WALK;
+    _ctx.cold_start       = cold;
+    _ctx.samples          = 0;
+    _ctx.active_block     = 0;
     _ctx.active_marker[0] = '\0';
-    _ctx.start_ms   = millis();
-
+    _ctx.start_ms         = millis();
     _ctx.run_number = csv_next_run_number(
         _ctx.antenna, _ctx.location, _ctx.condition, RunMode::WALK);
-
-    csv_open_run();  // cria arquivo, grava header + E START_RUN
-
+    csv_open_run();
     _state = State::RUNNING_WALK;
     return nullptr;
 }
@@ -100,26 +91,18 @@ const char* sm_cmd_start_walk(bool cold) {
 const char* sm_cmd_start_clock() {
     if (_state != State::READY)
         return "ERR_NOT_READY: execute CONFIG primeiro";
-    if (_state == State::RUNNING_WALK ||
-        _state == State::RUNNING_CLOCK ||
-        _state == State::RUNNING_BURN  ||
-        _state == State::RUNNING_BURN3)
-        return "ERR_RUN_ACTIVE: já há um run em andamento";
     if (!_wifi_up())
         return "ERR_NO_WIFI: Wi-Fi necessário para CLOCK";
 
-    _ctx.mode      = RunMode::CLOCK;
-    _ctx.cold_start = false;
-    _ctx.samples   = 0;
-    _ctx.active_block  = 0;
+    _ctx.mode             = RunMode::CLOCK;
+    _ctx.cold_start       = false;
+    _ctx.samples          = 0;
+    _ctx.active_block     = 0;
     _ctx.active_marker[0] = '\0';
-    _ctx.start_ms  = millis();
-
+    _ctx.start_ms         = millis();
     _ctx.run_number = csv_next_run_number(
         _ctx.antenna, _ctx.location, _ctx.condition, RunMode::CLOCK);
-
     csv_open_run();
-
     _state = State::RUNNING_CLOCK;
     return nullptr;
 }
@@ -128,30 +111,23 @@ const char* sm_cmd_start_clock() {
 const char* sm_cmd_start_burn(bool three_blocks) {
     if (_state != State::READY)
         return "ERR_NOT_READY: execute CONFIG primeiro";
-    if (_state == State::RUNNING_WALK ||
-        _state == State::RUNNING_CLOCK ||
-        _state == State::RUNNING_BURN  ||
-        _state == State::RUNNING_BURN3)
-        return "ERR_RUN_ACTIVE: já há um run em andamento";
     if (!_wifi_up())
         return "ERR_NO_WIFI: Wi-Fi necessário para BURN";
 
-    _ctx.mode        = RunMode::BURN;
-    _ctx.cold_start  = false;
-    _ctx.samples     = 0;
-    _ctx.active_block   = three_blocks ? 1 : 0;
-    _ctx.blocks_done    = 0;
-    _ctx.block_start_ms = millis();
+    _ctx.mode             = RunMode::BURN;
+    _ctx.cold_start       = false;
+    _ctx.samples          = 0;
+    _ctx.active_block     = three_blocks ? 1 : 0;
+    _ctx.blocks_done      = 0;
+    _ctx.block_start_ms   = millis();
     _ctx.active_marker[0] = '\0';
-    _ctx.start_ms    = millis();
-
+    _ctx.start_ms         = millis();
     _ctx.run_number = csv_next_run_number(
         _ctx.antenna, _ctx.location, _ctx.condition, RunMode::BURN);
-
     csv_open_run();
 
     if (three_blocks) {
-        csv_write_block_event(1); // linha B BLOCK1
+        csv_write_block_event(1);
         _state = State::RUNNING_BURN3;
     } else {
         _state = State::RUNNING_BURN;
@@ -164,11 +140,10 @@ const char* sm_cmd_mark(const char* label) {
     if (_state != State::RUNNING_CLOCK)
         return "ERR_NOT_CLOCK: MARK so aceito durante START_CLOCK";
     if (!_valid_id(label, MARKER_MAX_LEN))
-        return "ERR_INVALID: label alfanumerico+underscore, max 8 chars";
+        return "ERR_INVALID: label alfanumerico+underscore+ponto, max 8 chars";
 
     strncpy(_ctx.active_marker, label, MARKER_MAX_LEN);
     _ctx.active_marker[MARKER_MAX_LEN] = '\0';
-
     csv_write_marker_event(label);
     return nullptr;
 }
@@ -181,14 +156,11 @@ const char* sm_cmd_stop() {
         return "ERR_FLUSHING: flush em andamento, aguarde";
 
     _state = State::FLUSHING;
-    // flush completo com timeout 5 s — executado pela task de log
-    // ela chama csv_close_run() e volta para READY
     return nullptr;
 }
 
 // Chamado pelo runner quando BURN3 encerra automaticamente
 void sm_finish_burn3() {
-    if (_state == State::RUNNING_BURN3) {
+    if (_state == State::RUNNING_BURN3)
         _state = State::FLUSHING;
-    }
 }

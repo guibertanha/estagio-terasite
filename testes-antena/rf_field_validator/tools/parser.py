@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-parser.py — Pipeline offline de análise RF (spec N2.1)
+parser.py — Pipeline offline de análise RF (spec N3.0)
 
 Uso:
-    python tools/parser.py <pasta_com_csvs> [--weights plr=0.30,ttr=0.25,rssi=0.25,tput=0.20]
+    python tools/parser.py <pasta_com_csvs> [--weights plr=0.35,ttr=0.10,rssi=0.15,tput=0.40]
 
     A pasta pode conter os CSVs diretamente ou numa subpasta logs/.
     Gera: <pasta>/report/report.html  e  <pasta>/report/summary.csv
@@ -306,7 +306,12 @@ def consolidate_clock(agg_list: list) -> dict:
 # ══════════════════════════════════════════════════════════════
 #  6. SCORE RF (0–100)
 # ══════════════════════════════════════════════════════════════
-DEFAULT_WEIGHTS = {"plr": 0.30, "ttr": 0.25, "rssi": 0.25, "tput": 0.20}
+# Pesos calibrados para o cenário real do Frotall:
+# Wi-Fi é usado para sync AP em bulk (3–10 m). Throughput define o tempo de
+# sync de dados acumulados offline → maior peso. PLR define integridade.
+# RSSI é threshold a curta distância, não diferenciador. TTR irrelevante
+# sem eventos de desconexão em testes WALK.
+DEFAULT_WEIGHTS = {"plr": 0.35, "ttr": 0.10, "rssi": 0.15, "tput": 0.40}
 
 # Valor sentinela que indica "sem dados" (nunca houve WALK para medir TTR)
 _TTR_NODATA = 999.0
@@ -372,7 +377,7 @@ def compute_scores(antenna_metrics: dict, weights: dict) -> tuple:
 #  7. PIPELINE PRINCIPAL
 # ══════════════════════════════════════════════════════════════
 def run_pipeline(campaign_dir: Path, weights: dict):
-    print(f"\nRF Field Validator — Parser N2.1")
+    print(f"\nRF Field Validator — Parser N3.0")
     print(f"Campanha: {campaign_dir}\n{'─'*50}")
 
     # Localiza CSVs — tenta pasta direta, logs/ ou recursivo em subpastas
@@ -738,7 +743,7 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
   </div>
 </div>"""
 
-    # RSSI e throughput por amostra (time series)
+    # RSSI e throughput por amostra (time series — só BURN)
     series_data = {}
     for ant in sorted_ants:
         samples = raw_samples.get(ant, [])
@@ -748,6 +753,45 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
             "rssi": [int(r.get("rssi_dbm") or -127) for r in samples],
             "tput": [int(r.get("throughput_bps") or 0) for r in samples],
         }
+
+    # Range global de RSSI para eixo Y compartilhado nos small multiples
+    all_rssi_vals = [v for s in series_data.values() for v in s["rssi"] if v > -127]
+    rssi_global_min = (min(all_rssi_vals) - 5) if all_rssi_vals else -100
+    rssi_global_max = (max(all_rssi_vals) + 5) if all_rssi_vals else -40
+
+    # ── Small multiples — canvases RSSI e Tput ────────────────────
+    rssi_sm_html = ""
+    tput_sm_html = ""
+    for ant in sorted_ants:
+        if ant not in series_data: continue
+        s = series_data[ant]
+        n = len(s["rssi"])
+        dur_min = n * 15 / 60
+        col = ant_colors[ant]
+        pt_radius = 0 if n > 40 else 2
+        rssi_sm_html += (
+            f'<div style="background:#0d1117;border:1px solid #21262d;'
+            f'border-radius:6px;padding:10px">'
+            f'<div style="display:flex;justify-content:space-between;'
+            f'align-items:center;margin-bottom:4px">'
+            f'<span style="font-weight:700;color:{col};font-size:.95em">{ant}</span>'
+            f'<span style="font-size:9px;color:#484f58">{n} janelas · ~{dur_min:.0f} min</span>'
+            f'</div>'
+            f'<canvas id="chartRssiSM_{ant}" height="90"></canvas>'
+            f'</div>'
+        )
+        if has_tput and any(v > 0 for v in s["tput"]):
+            tput_sm_html += (
+                f'<div style="background:#0d1117;border:1px solid #21262d;'
+                f'border-radius:6px;padding:10px">'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:center;margin-bottom:4px">'
+                f'<span style="font-weight:700;color:{col};font-size:.95em">{ant}</span>'
+                f'<span style="font-size:9px;color:#484f58">{n} janelas</span>'
+                f'</div>'
+                f'<canvas id="chartTputSM_{ant}" height="90"></canvas>'
+                f'</div>'
+            )
 
     # Métricas resumidas por antena
     rssi_vals  = [_nan_to_none(antenna_metrics[a]["rssi_p10"])    for a in sorted_ants]
@@ -882,15 +926,17 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
 
     # ── Monta JSON para Chart.js ────────────────────────────────
     chart_json = json.dumps({
-        "antennas":      sorted_ants,
-        "colors":        [ant_colors[a] for a in sorted_ants],
-        "scores":        score_vals,
-        "rssi":          rssi_vals,
-        "tput_mbps":     [t/1e6 if t else None for t in tput_vals],
-        "plr":           plr_vals,
-        "lat_ms":        lat_vals,
-        "has_tput":      has_tput,
-        "series":        series_data,
+        "antennas":       sorted_ants,
+        "colors":         [ant_colors[a] for a in sorted_ants],
+        "scores":         score_vals,
+        "rssi":           rssi_vals,
+        "tput_mbps":      [t/1e6 if t else None for t in tput_vals],
+        "plr":            plr_vals,
+        "lat_ms":         lat_vals,
+        "has_tput":       has_tput,
+        "series":         series_data,
+        "rssi_y_min":     rssi_global_min,
+        "rssi_y_max":     rssi_global_max,
     }, ensure_ascii=False)
     clock_json = clock_chart_json
 
@@ -906,8 +952,14 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
     )
     tput_timeseries_html = (
         '<h2>Throughput ao Longo do Tempo</h2>'
-        '<div class="chart-card"><canvas id="chartTputTime" height="120"></canvas></div>'
-        if has_tput else ''
+        '<p class="chart-desc">Throughput TCP medido em cada janela BURN de 10 s. '
+        'Cada antena em escala de tempo independente — permite comparar estabilidade '
+        'independente da duração do teste.</p>'
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));'
+        'gap:12px;margin-bottom:16px">'
+        + tput_sm_html +
+        '</div>'
+        if (has_tput and tput_sm_html) else ''
     )
     clock_section_html = (
         '<h2>CLOCK — Comparação por Posição/Marcador</h2>'
@@ -957,6 +1009,7 @@ th{{background:#161b22;color:#8b949e;font-size:10px;text-transform:uppercase;
 td{{padding:8px 10px;border-bottom:1px solid #21262d;font-size:12px}}
 tr:last-child td{{border-bottom:none}}
 tr:hover td{{background:#1c2128}}
+.chart-desc{{font-size:12px;color:#484f58;margin:-6px 0 12px;line-height:1.6}}
 footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
         padding-top:16px;border-top:1px solid #21262d}}
 @media(max-width:700px){{.grid2,.grid3{{grid-template-columns:1fr}}}}
@@ -976,13 +1029,14 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 {winner_html}
 
 <h2>Ranking — Score RF Composto</h2>
+<p class="chart-desc">Score 0–100 relativo às antenas desta campanha — 100 = melhor, 0 = pior.
+As mini-barras mostram quanto cada eixo contribuiu para o resultado.
+O radar mostra o perfil multidimensional normalizado.</p>
 <div class="grid2">
   <div class="card">
     {score_badges}
     <p style="font-size:10px;color:#484f58;margin-top:8px;line-height:1.6">
-      Score = {eff_weights['plr']:.0%} PLR + {eff_weights['ttr']:.0%} TTR + {eff_weights['rssi']:.0%} RSSI P10 + {eff_weights['tput']:.0%} Throughput (min-max)<br>
-      <span style="color:#3d444d">&#9432; Normalização relativa à campanha: 100 = melhor antena testada, 0 = pior.
-      Barras PLR/RSSI/Tput mostram a contribuição de cada eixo.</span>
+      Score = {eff_weights['plr']:.0%} PLR + {eff_weights['ttr']:.0%} TTR + {eff_weights['rssi']:.0%} RSSI P10 + {eff_weights['tput']:.0%} Throughput (min-max)
     </p>
   </div>
   <div class="card" style="display:flex;flex-direction:column;align-items:center">
@@ -993,6 +1047,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 <h2>Tabela Comparativa</h2>
+<p class="chart-desc">Valores absolutos por antena. Verde = melhor da campanha, vermelho = pior, amarelo = intermediário.</p>
 <div class="card" style="padding:0;overflow:hidden">
 <table>
   <tr>
@@ -1008,6 +1063,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 <h2>Distribuição RSSI por Antena</h2>
+<p class="chart-desc">Faixa de variação do sinal. Barra escura = range total, barra colorida = P10–P90 (80% central das amostras), traço branco = mediana.</p>
 <div class="card">
   <div style="display:flex;gap:20px;font-size:10px;color:#484f58;
               margin-bottom:12px;align-items:center">
@@ -1024,6 +1080,7 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 <h2>Comparação de Métricas</h2>
+<p class="chart-desc">Valores consolidados por antena (mediana dos runs). RSSI P10 = pior 10% das amostras — indica o sinal em condição adversa.</p>
 <div class="grid3">
   <div class="card" style="text-align:center">
     <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 (dBm)</div>
@@ -1037,8 +1094,12 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 <h2>RSSI ao Longo do Tempo</h2>
-<div class="chart-card">
-  <canvas id="chartRssiTime" height="120"></canvas>
+<p class="chart-desc">Evolução do sinal por janela BURN (~15 s). Cada antena em escala de tempo independente — permite comparar estabilidade sem distorção por duração diferente de teste.
+Eixo Y compartilhado entre todos os gráficos para comparação justa.
+<span style="color:#d29922">— -65 dBm: limite mínimo recomendado para campo.</span>
+<span style="color:#f85149">  — -75 dBm: crítico, risco de perda de link.</span></p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px">
+  {rssi_sm_html}
 </div>
 
 {tput_timeseries_html}
@@ -1158,79 +1219,76 @@ barChart('chartPlr', D.antennas, [{{
   borderRadius: 4,
 }}], {{ min: 0 }});
 
-// Time series — RSSI
+// Small multiples — RSSI por antena (eixo Y compartilhado)
 (function() {{
-  const datasets = [];
-  Object.entries(D.series).forEach(([ant, s], i) => {{
-    if (!s.rssi || !s.rssi.length) return;
-    datasets.push({{
-      label: ant,
-      data: s.rssi.map((v, j) => ({{x: j, y: v}})),
-      borderColor: D.colors[i] || '#58a6ff',
-      backgroundColor: 'transparent',
-      pointRadius: 3,
-      tension: 0.3,
-    }});
-  }});
-  if (!datasets.length) return;
-  new Chart(document.getElementById('chartRssiTime'), {{
-    type: 'line',
-    data: {{ datasets }},
-    options: {{
-      responsive: true,
-      plugins: {{
-        legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }},
-        annotation: {{ annotations: {{
-          ref65: {{ type:'line', yMin:-65, yMax:-65, borderColor:'rgba(210,153,34,0.55)',
-                    borderWidth:1, borderDash:[4,4],
-                    label:{{content:'-65 dBm (limite campo)',display:true,
-                           color:'#d29922',font:{{size:9}},position:'start'}} }},
-          ref75: {{ type:'line', yMin:-75, yMax:-75, borderColor:'rgba(248,81,73,0.45)',
-                    borderWidth:1, borderDash:[4,4],
-                    label:{{content:'-75 dBm (crítico)',display:true,
-                           color:'#f85149',font:{{size:9}},position:'start'}} }},
-        }} }}
-      }},
-      scales: {{
-        x: {{ type:'linear',
-              title:{{display:true,text:'Janela BURN (×15 s)',color:'#8b949e'}},
-              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
-        y: {{ title:{{display:true,text:'RSSI (dBm)',color:'#8b949e'}},
-              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+  const yMin = D.rssi_y_min, yMax = D.rssi_y_max;
+  D.antennas.forEach(function(ant, i) {{
+    const s = D.series[ant];
+    if (!s || !s.rssi || !s.rssi.length) return;
+    const cvs = document.getElementById('chartRssiSM_' + ant);
+    if (!cvs) return;
+    const color = D.colors[i] || '#58a6ff';
+    const n = s.rssi.length;
+    const maxX = n - 1;
+    const ptR = n > 40 ? 0 : 2;
+    new Chart(cvs, {{
+      type: 'line',
+      data: {{ datasets: [
+        {{ label: ant,
+           data: s.rssi.map(function(v,j){{return {{x:j,y:v}}}}),
+           borderColor: color, backgroundColor: color+'18',
+           pointRadius: ptR, tension: 0.3, fill: true, borderWidth: 1.5 }},
+        {{ label:'−65', data:[{{x:0,y:-65}},{{x:maxX,y:-65}}],
+           borderColor:'#d2992277', borderDash:[4,4], borderWidth:1,
+           pointRadius:0, fill:false }},
+        {{ label:'−75', data:[{{x:0,y:-75}},{{x:maxX,y:-75}}],
+           borderColor:'#f8514966', borderDash:[4,4], borderWidth:1,
+           pointRadius:0, fill:false }},
+      ]}},
+      options: {{
+        responsive: true,
+        plugins: {{ legend: {{display:false}} }},
+        scales: {{
+          x: {{ type:'linear', ticks:{{color:'#484f58',font:{{size:8}},maxTicksLimit:6}},
+                grid:{{color:'rgba(48,54,61,0.5)'}} }},
+          y: {{ min:yMin, max:yMax,
+                ticks:{{color:'#484f58',font:{{size:8}},maxTicksLimit:5}},
+                grid:{{color:'rgba(48,54,61,0.5)'}} }},
+        }}
       }}
-    }}
+    }});
   }});
 }})();
 
-// Time series — Throughput (somente se há dados)
+// Small multiples — Throughput por antena
 if (D.has_tput) (function() {{
-  const datasets = [];
-  Object.entries(D.series).forEach(([ant, s], i) => {{
-    if (!s.tput || !s.tput.length) return;
-    datasets.push({{
-      label: ant,
-      data: s.tput.map((v, j) => ({{x: j, y: v/1e6}})),
-      borderColor: D.colors[i] || '#58a6ff',
-      backgroundColor: 'transparent',
-      pointRadius: 3,
-      tension: 0.3,
-    }});
-  }});
-  if (!datasets.length) return;
-  new Chart(document.getElementById('chartTputTime'), {{
-    type: 'line',
-    data: {{ datasets }},
-    options: {{
-      responsive: true,
-      plugins: {{ legend: {{ labels: {{ color:'#c9d1d9',font:{{size:11}} }} }} }},
-      scales: {{
-        x: {{ type:'linear', title:{{display:true,text:'Amostra',color:'#8b949e'}},
-              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
-        y: {{ title:{{display:true,text:'Throughput (Mbps)',color:'#8b949e'}},
-              min: 0,
-              ticks:{{color:'#8b949e',font:{{size:10}}}}, grid:{{color:GRID}} }},
+  D.antennas.forEach(function(ant, i) {{
+    const s = D.series[ant];
+    if (!s || !s.tput || !s.tput.length) return;
+    const cvs = document.getElementById('chartTputSM_' + ant);
+    if (!cvs) return;
+    const color = D.colors[i] || '#58a6ff';
+    const n = s.tput.length;
+    const ptR = n > 40 ? 0 : 2;
+    new Chart(cvs, {{
+      type: 'line',
+      data: {{ datasets: [{{
+        label: ant,
+        data: s.tput.map(function(v,j){{return {{x:j,y:v/1e6}}}}),
+        borderColor: color, backgroundColor: color+'18',
+        pointRadius: ptR, tension: 0.3, fill: true, borderWidth: 1.5,
+      }}]}},
+      options: {{
+        responsive: true,
+        plugins: {{ legend: {{display:false}} }},
+        scales: {{
+          x: {{ type:'linear', ticks:{{color:'#484f58',font:{{size:8}},maxTicksLimit:6}},
+                grid:{{color:'rgba(48,54,61,0.5)'}} }},
+          y: {{ min:0, ticks:{{color:'#484f58',font:{{size:8}},maxTicksLimit:5}},
+                grid:{{color:'rgba(48,54,61,0.5)'}} }},
+        }}
       }}
-    }}
+    }});
   }});
 }})();
 
