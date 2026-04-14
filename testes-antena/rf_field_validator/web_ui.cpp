@@ -77,6 +77,23 @@ a{color:#58a6ff;text-decoration:none}
 a:hover{text-decoration:underline}
 a.del{color:#f85149}
 #spark{width:100%;height:80px;display:block;background:#010409;border-radius:4px}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:4px}
+.mc{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 5px;text-align:center;cursor:pointer;transition:border-color .2s}
+.mc:hover,.mc.sel{border-color:#58a6ff;background:#1b2a49}
+.mi{font-size:1.3em;margin-bottom:3px}
+.mn{font-size:.76em;font-weight:bold;color:#e6edf3}
+.md{font-size:.62em;color:#8b949e;margin-top:1px}
+.tips{background:#0d1117;border-left:2px solid #30363d;padding:7px 10px;margin:8px 0;border-radius:0 4px 4px 0}
+.tip{font-size:.74em;color:#8b949e;padding:2px 0 2px 12px;position:relative;line-height:1.5}
+.tip:before{content:'›';position:absolute;left:2px;color:#484f58}
+.mhd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.back{font-size:.74em;color:#58a6ff;cursor:pointer;padding:3px 8px;border:1px solid #1f6feb;border-radius:4px}
+.back:hover{background:#1b2a49}
+.mtitle{font-size:.8em;font-weight:bold;color:#e6edf3}
+.mexp{font-size:.76em;color:#8b949e;margin-bottom:8px;line-height:1.6}
+.dst-box{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:8px;margin-top:6px}
+.pf{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:8px}
+.pfi{display:flex;align-items:center;gap:6px;margin-top:3px}
 </style>
 </head>
 <body>
@@ -122,27 +139,6 @@ a.del{color:#f85149}
   </div>
 </div>
 
-<div class="panel col" id="p-ds">
-  <div class="ph" onclick="tp('p-ds')"><h3>Dist&#xE2;ncia estimada</h3></div>
-  <div class="pc">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <span id="dv" style="font-size:1.6em;font-weight:bold;color:#8b949e">&#x2014;</span>
-      <button class="bp" onclick="calRef()">Calibrar a 1 m</button>
-    </div>
-    <div id="dw" style="font-size:.75em;color:#d29922;margin-bottom:6px">
-      &#x26A0; Fique a 1 m do celular e pressione Calibrar para ativar
-    </div>
-    <div class="bw" style="height:7px"><div class="bf" id="db" style="height:7px;width:0%"></div></div>
-    <div style="display:flex;justify-content:space-between;font-size:.67em;color:#484f58;margin-top:2px">
-      <span>0</span><span>5 m</span><span>10 m</span><span>15 m</span><span>20 m</span>
-    </div>
-    <label style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:.8em;color:#8b949e">
-      <input type="checkbox" id="amtog"> Auto-mark 3/5/10/15 m durante CLOCK
-    </label>
-    <div id="dm" class="msg"></div>
-  </div>
-</div>
-
 <div class="panel" id="p-cf">
   <div class="ph" onclick="tp('p-cf')"><h3>Configurar</h3></div>
   <div class="pc">
@@ -165,46 +161,123 @@ a.del{color:#f85149}
   </div>
 </div>
 
-<div class="panel" id="p-ct">
-  <div class="ph" onclick="tp('p-ct')"><h3>Controle</h3></div>
+<div class="panel" id="p-ts">
+  <div class="ph" onclick="tp('p-ts')"><h3>Teste</h3></div>
   <div class="pc">
-    <div class="g3">
-      <button class="bs" onclick="cmd('start_walk')">WALK</button>
-      <button class="bs" onclick="cmd('start_walk_cold')">WALK cold</button>
-      <button class="bs" onclick="cmd('start_clock')">CLOCK</button>
-    </div>
-    <div class="g2">
-      <button class="bs" onclick="cmd('start_burn')">BURN</button>
-      <button class="bs" onclick="cmd('start_burn3')">BURN 3&#xD7;60</button>
-    </div>
-    <button id="btn-stop" class="bx" onclick="armStop()">&#x23F9; STOP</button>
-    <div id="rm" class="msg"></div>
-  </div>
-</div>
 
-<div class="panel col" id="p-mk">
-  <div class="ph" onclick="tp('p-mk')"><h3>Marcar &#x2014; CLOCK</h3></div>
-  <div class="pc">
-    <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Distância do celular</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
-      <button class="bp" onclick="qmark('3M')">3 m</button>
-      <button class="bp" onclick="qmark('5M')">5 m</button>
-      <button class="bp" onclick="qmark('10M')">10 m</button>
-      <button class="bp" onclick="qmark('15M')">15 m</button>
+    <div id="mode-sel">
+      <div style="font-size:.72em;color:#8b949e;margin-bottom:8px">Selecione o tipo de teste para ver instru&#xE7;&#xF5;es e controles espec&#xED;ficos:</div>
+      <div class="mode-grid">
+        <div class="mc" onclick="selMode('walk')"><div class="mi">&#x1F6B6;</div><div class="mn">WALK</div><div class="md">Varredura cont&#xED;nua</div></div>
+        <div class="mc" onclick="selMode('clock')"><div class="mi">&#x1F4CD;</div><div class="mn">CLOCK</div><div class="md">Por posi&#xE7;&#xE3;o</div></div>
+        <div class="mc" onclick="selMode('burn')"><div class="mi">&#x26A1;</div><div class="mn">BURN</div><div class="md">Throughput + PLR</div></div>
+      </div>
     </div>
-    <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Posi&#xE7;&#xE3;o na m&#xE1;quina</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
-      <button class="bp" onclick="qmark('CABINE')">Cabine</button>
-      <button class="bp" onclick="qmark('MOTOR')">Motor</button>
-      <button class="bp" onclick="qmark('FRENTE')">Frente</button>
-      <button class="bp" onclick="qmark('TRAS')">Tr&#xE1;s</button>
+
+    <div id="md-walk" style="display:none">
+      <div class="mhd"><span class="back" onclick="desMode()">&#x2190; Voltar</span><span class="mtitle">&#x1F6B6; WALK &#x2014; Varredura de Cobertura</span></div>
+      <p class="mexp">Coleta RSSI a 2 Hz enquanto voc&#xEA; caminha ao redor da m&#xE1;quina. Ideal para mapear a cobertura geral e identificar zonas de sinal fraco antes do BURN.</p>
+      <div class="tips">
+        <div class="tip">Caminhe devagar e de forma constante (&lt; 1 m/s)</div>
+        <div class="tip">Mantenha o celular na mesma altura durante o percurso</div>
+        <div class="tip">Fa&#xE7;a um trajeto sistem&#xE1;tico &#x2014; n&#xE3;o aleat&#xF3;rio</div>
+        <div class="tip">Use <strong>WALK cold</strong> se o Wi-Fi ainda n&#xE3;o conectou (medi&#xE7;&#xE3;o offline)</div>
+      </div>
+      <div class="dst-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span id="dv-walk" style="font-size:1.3em;font-weight:bold;color:#8b949e">&#x2014; m</span>
+          <span id="ds-walk" style="font-size:.68em;color:#484f58"></span>
+        </div>
+        <div class="bw" style="height:5px"><div class="bf" id="db-walk" style="height:5px;width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:.62em;color:#484f58;margin-top:2px"><span>0</span><span>5m</span><span>10m</span><span>15m</span><span>20m</span></div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+          <button class="bp" onclick="calRef()">Calibrar 1 m</button>
+          <span id="cal-walk" style="font-size:.7em;color:#484f58"></span>
+        </div>
+        <div style="font-size:.62em;color:#484f58;margin-top:4px">Posicione o celular a 1 m do ESP32 e toque em Calibrar.</div>
+      </div>
+      <div class="g2" style="margin-top:10px">
+        <button class="bs" onclick="cmd('start_walk')">&#x25B6; Iniciar WALK</button>
+        <button class="bs" onclick="cmd('start_walk_cold')">&#x25B6; WALK cold</button>
+      </div>
+      <button class="bx" onclick="armStop('walk')" id="btn-stop-walk" style="margin-top:6px">&#x23F9; STOP</button>
+      <div id="dm-walk" class="msg"></div>
     </div>
-    <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Livre</div>
-    <div style="display:flex;gap:6px">
-      <input type="text" id="mlbl" value="P1" maxlength="8" style="flex:1">
-      <button style="width:auto;padding:7px 14px" onclick="sendMark()">Marcar</button>
+
+    <div id="md-clock" style="display:none">
+      <div class="mhd"><span class="back" onclick="desMode()">&#x2190; Voltar</span><span class="mtitle">&#x1F4CD; CLOCK &#x2014; Mapeamento por Posi&#xE7;&#xE3;o</span></div>
+      <p class="mexp">Mede RSSI em posi&#xE7;&#xF5;es fixas marcadas pelo operador. Use para comparar sinal a diferentes dist&#xE2;ncias <em>ou</em> zonas ao redor da m&#xE1;quina &#x2014; o parser agrupa as amostras por marcador.</p>
+      <div class="tips">
+        <div class="tip">Pare 5&#x2013;10 s em cada posi&#xE7;&#xE3;o <strong>antes</strong> de marcar</div>
+        <div class="tip">Marque assim que chegar &#x2014; as amostras seguintes ficam naquele ponto</div>
+        <div class="tip">Teste de dist&#xE2;ncia: use 3/5/10/15 m em ordem crescente</div>
+        <div class="tip">Mapeamento de zona: use Cabine/Motor/Frente/Tr&#xE1;s em qualquer ordem</div>
+      </div>
+      <div class="dst-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span id="dv-clock" style="font-size:1.3em;font-weight:bold;color:#8b949e">&#x2014; m</span>
+          <span id="ds-clock" style="font-size:.68em;color:#484f58"></span>
+        </div>
+        <div class="bw" style="height:5px"><div class="bf" id="db-clock" style="height:5px;width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:.62em;color:#484f58;margin-top:2px"><span>0</span><span>5m</span><span>10m</span><span>15m</span><span>20m</span></div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+          <button class="bp" onclick="calRef()">Calibrar 1 m</button>
+          <span id="cal-clock" style="font-size:.7em;color:#484f58"></span>
+        </div>
+        <div style="font-size:.62em;color:#484f58;margin-top:4px">Calibre antes de começar: celular a 1 m do ESP32.</div>
+        <label style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:.78em;color:#8b949e">
+          <input type="checkbox" id="amtog"> Auto-mark 3/5/10/15 m
+        </label>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Dist&#xE2;ncia do celular</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+          <button class="bp" onclick="qmark('3M')">3 m</button>
+          <button class="bp" onclick="qmark('5M')">5 m</button>
+          <button class="bp" onclick="qmark('10M')">10 m</button>
+          <button class="bp" onclick="qmark('15M')">15 m</button>
+        </div>
+        <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Posi&#xE7;&#xE3;o na m&#xE1;quina</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+          <button class="bp" onclick="qmark('CABINE')">Cabine</button>
+          <button class="bp" onclick="qmark('MOTOR')">Motor</button>
+          <button class="bp" onclick="qmark('FRENTE')">Frente</button>
+          <button class="bp" onclick="qmark('TRAS')">Tr&#xE1;s</button>
+        </div>
+        <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Livre</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="text" id="mlbl" value="P1" maxlength="8" style="flex:1">
+          <button style="width:auto;padding:7px 14px" onclick="sendMark()">Marcar</button>
+        </div>
+        <div id="mm" class="msg"></div>
+      </div>
+      <button class="bs" onclick="cmd('start_clock')" style="margin-bottom:6px">&#x25B6; Iniciar CLOCK</button>
+      <button class="bx" onclick="armStop('clock')" id="btn-stop-clock">&#x23F9; STOP</button>
+      <div id="dm-clock" class="msg"></div>
     </div>
-    <div id="mm" class="msg"></div>
+
+    <div id="md-burn" style="display:none">
+      <div class="mhd"><span class="back" onclick="desMode()">&#x2190; Voltar</span><span class="mtitle">&#x26A1; BURN &#x2014; Throughput + PLR</span></div>
+      <p class="mexp">Mede throughput TCP e taxa de perda de pacotes (PLR) em janelas de 15 s. Cada janela &#xE9; uma amostra BURN no CSV. Requer <code>watch.py</code> rodando no notebook.</p>
+      <div class="tips">
+        <div class="tip">Execute <code>python tools/watch.py &lt;IP&gt;</code> no notebook antes de iniciar</div>
+        <div class="tip">Mantenha o ESP32 parado durante o BURN &#x2014; sem movimento</div>
+        <div class="tip">Repita 3&#xD7; por antena e posi&#xE7;&#xE3;o para resultados consistentes</div>
+        <div class="tip"><strong>BURN 3&#xD7;60</strong> faz 3 blocos de 60 s automaticamente &#x2014; ideal para bancada</div>
+      </div>
+      <div class="pf" style="margin-top:8px">
+        <div style="font-size:.7em;color:#484f58;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Pr&#xE9;-voo</div>
+        <div class="pfi"><span id="pf-wifi-icon">&#x23F3;</span><span id="pf-wifi-text" style="font-size:.78em;color:#8b949e">Verificando Wi-Fi...</span></div>
+        <div class="pfi"><span id="pf-tcp-icon">&#x2139;</span><span id="pf-tcp-text" style="font-size:.78em;color:#d29922">Verifica&#xE7;&#xE3;o do tcp_sink ocorre ao iniciar &#x2014; execute watch.py antes</span></div>
+      </div>
+      <div class="g2" style="margin-top:10px">
+        <button class="bs" onclick="cmd('start_burn')">&#x25B6; BURN simples</button>
+        <button class="bs" onclick="cmd('start_burn3')">&#x25B6; BURN 3&#xD7;60</button>
+      </div>
+      <button class="bx" onclick="armStop('burn')" id="btn-stop-burn" style="margin-top:6px">&#x23F9; STOP</button>
+      <div id="dm-burn" class="msg"></div>
+    </div>
+
   </div>
 </div>
 
@@ -287,19 +360,42 @@ function post(b,cb){
   .then(function(r){return r.json();}).then(cb)
   .catch(function(){cb({ok:false,msg:'Erro de rede'});});
 }
-function cmd(a){post('action='+a,function(r){msg('rm',r.ok,r.msg);});}
+// ── Mode selection ───────────────────────────────────────────
+var _mode=null; // 'walk'|'clock'|'burn'|null
+function selMode(m){
+  _mode=m;
+  document.getElementById('mode-sel').style.display='none';
+  ['walk','clock','burn'].forEach(function(x){
+    document.getElementById('md-'+x).style.display=(x===m?'block':'none');
+  });
+  updDist();
+}
+function desMode(){
+  _mode=null;
+  document.getElementById('mode-sel').style.display='block';
+  ['walk','clock','burn'].forEach(function(x){
+    document.getElementById('md-'+x).style.display='none';
+  });
+}
+function _dmId(){return _mode?'dm-'+_mode:'cm';}
+
+function cmd(a){
+  // BURN: confirmação para triplicata
+  if(a==='start_burn'&&!confirm('Executar BURN simples? (recomendado: 3x por antena/posição)'))return;
+  post('action='+a,function(r){msg(_dmId(),r.ok,r.msg);});
+}
 function qmark(l){document.getElementById('mlbl').value=l;sendMark();}
 
-// ── STOP 2-tap ────────────────────────────────────────────────
-var _sa2=false,_st2=null;
-function armStop(){
-  var b=document.getElementById('btn-stop');
-  if(!_sa2){
-    _sa2=true;b.textContent='Confirmar STOP?';b.className='bx bx-arm';
-    _st2=setTimeout(function(){_sa2=false;b.textContent='\u23F9 STOP';b.className='bx';},3000);
+// ── STOP 2-tap (por modo) ────────────────────────────────────
+var _sa2={},_st2={};
+function armStop(m){
+  var b=document.getElementById('btn-stop-'+m);
+  if(!_sa2[m]){
+    _sa2[m]=true;b.textContent='Confirmar STOP?';b.className='bx bx-arm';
+    _st2[m]=setTimeout(function(){_sa2[m]=false;b.textContent='\u23F9 STOP';b.className='bx';},3000);
   }else{
-    clearTimeout(_st2);_sa2=false;b.textContent='\u23F9 STOP';b.className='bx';
-    post('action=stop',function(r){msg('rm',r.ok,r.msg);});
+    clearTimeout(_st2[m]);_sa2[m]=false;b.textContent='\u23F9 STOP';b.className='bx';
+    post('action=stop',function(r){msg('dm-'+m,r.ok,r.msg);});
   }
 }
 
@@ -368,40 +464,43 @@ function _avgRssi(){
 
 function calRef(){
   var r=_avgRssi();
-  if(r<=-127){msg('dm',false,'Sem RSSI — aguarde Wi-Fi');return;}
+  if(r<=-127){msg(_dmId(),false,'Sem RSSI — aguarde Wi-Fi');return;}
   _r1m=Math.round(r);
   localStorage.setItem('rfv_r1m',String(_r1m));
-  document.getElementById('dw').style.display='none';
-  msg('dm',true,'Ref 1 m = '+_r1m+' dBm — pode abrir o painel e afastar');
+  msg(_dmId(),true,'Ref 1 m = '+_r1m+' dBm — agora afaste-se');
   updDist();
 }
 
 function updDist(){
-  var dv=document.getElementById('dv');
-  var db=document.getElementById('db');
-  var dw=document.getElementById('dw');
+  if(!_mode||_mode==='burn')return;
+  var dv=document.getElementById('dv-'+_mode);
+  var db=document.getElementById('db-'+_mode);
+  var ds=document.getElementById('ds-'+_mode);
+  var cl=document.getElementById('cal-'+_mode);
   if(!dv)return;
-  if(isNaN(_r1m)){
-    dv.textContent='—';dv.style.color='#8b949e';
-    if(dw)dw.style.display='block';
-    return;
+  if(cl)cl.textContent=isNaN(_r1m)?'sem calibração':('ref '+_r1m+' dBm');
+  var d=NaN;
+  if(!isNaN(_r1m)){
+    var r=_avgRssi();
+    if(r>-127)d=Math.pow(10,(_r1m-r)/(10*_PLN));
   }
-  if(dw)dw.style.display='none';
-  var r=_avgRssi();
-  if(r<=-127){dv.textContent='—';dv.style.color='#8b949e';return;}
-  var d=Math.pow(10,(_r1m-r)/(10*_PLN));
-  var col=d<4?'#3fb950':d<8?'#d29922':'#58a6ff';
-  dv.textContent='~'+d.toFixed(1)+' m';
-  dv.style.color=col;
+  if(isNaN(d)){
+    dv.textContent='— m';dv.style.color='#8b949e';
+    if(ds)ds.textContent=isNaN(_r1m)?'calibre 1 m primeiro':'aguardando RSSI';
+    db.style.width='0%';return;
+  }
+  var col=d<4?'#3fb950':d<8?'#d29922':d<15?'#58a6ff':'#f85149';
+  dv.textContent='~'+d.toFixed(1)+' m';dv.style.color=col;
+  if(ds)ds.textContent='RSSI '+_avgRssi().toFixed(0)+' dBm';
   db.style.width=Math.min(100,d/20*100)+'%';
   db.style.background=col;
-  // Auto-mark: envia MARK ao cruzar cada limiar durante CLOCK
+  // Auto-mark em CLOCK
   var amEl=document.getElementById('amtog');
   if(amEl&&amEl.checked&&_cst==='RUNNING_CLOCK'){
     _THRS.forEach(function(t,i){
       if(!_amkd[t]&&d>=t){
         _amkd[t]=true;
-        post('action=mark&label='+_TLBL[i],function(r2){msg('dm',r2.ok,'Auto-mark: '+_TLBL[i]);});
+        post('action=mark&label='+_TLBL[i],function(r2){msg('dm-clock',r2.ok,'Auto-mark: '+_TLBL[i]);});
       }
       if(_amkd[t]&&d<t-_HYST)_amkd[t]=false;
     });
@@ -415,6 +514,17 @@ var _wr=false;
 function updSt(){
   fetch('/status').then(function(r){return r.json();}).then(function(d){
     _cst=d.state;
+    // Auto-selecionar modo quando houver run ativo
+    var stm={RUNNING_WALK:'walk',RUNNING_CLOCK:'clock',RUNNING_BURN:'burn',RUNNING_BURN3:'burn'}[d.state];
+    if(stm&&_mode!==stm)selMode(stm);
+    // Preflight Wi-Fi (visível no md-burn)
+    var wi=document.getElementById('pf-wifi-icon'),wt=document.getElementById('pf-wifi-text');
+    if(wi&&wt){
+      var up=(d.rssi!==-127);
+      wi.textContent=up?'\u2705':'\u274C';
+      wt.textContent=up?('Wi-Fi OK ('+d.rssi+' dBm)'):'Sem Wi-Fi — aguarde conexão';
+      wt.style.color=up?'#3fb950':'#f85149';
+    }
     var sb=document.getElementById('sb');
     sb.textContent=d.state;sb.className=SC[d.state]||'si';
     var run=d.elapsed_ms>0;
