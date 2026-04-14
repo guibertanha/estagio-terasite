@@ -304,7 +304,102 @@ def consolidate_clock(agg_list: list) -> dict:
     return result
 
 # ══════════════════════════════════════════════════════════════
-#  6. SCORE RF (0–100)
+#  6. TABELA DE COBERTURA (CLOCK por distância / localização)
+# ══════════════════════════════════════════════════════════════
+COVERAGE_THR = -75   # dBm — limiar mínimo Frotall
+COVERAGE_GOOD = -65  # dBm — sinal bom
+
+# Mapeamento de marcadores de distância para metros
+DIST_MARKERS: dict[str, float] = {
+    "3M": 3, "5M": 5, "10M": 10, "15M": 15, "20M": 20,
+    "3": 3,  "5": 5,  "10": 10,  "15": 15,  "20": 20,
+}
+
+def _dist_stats(rssi_list: list) -> dict | None:
+    if not rssi_list:
+        return None
+    return {
+        "rssi_median": _median(rssi_list),
+        "rssi_p10":    _pct(rssi_list, 10),
+        "n":           len(rssi_list),
+    }
+
+def build_coverage_tables(valid_runs: list) -> tuple[dict, dict]:
+    """
+    Retorna (cov_stats, loc_stats):
+      cov_stats  = {(ant, cnd): {dist_m: stats_dict}}
+      loc_stats  = {(loc, cnd): {dist_m: {ant: stats_dict}}}
+    Usa apenas runs CLOCK com marcadores de distância reconhecidos.
+    """
+    by_dist = defaultdict(lambda: defaultdict(list))
+    by_loc  = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
+    for run in valid_runs:
+        meta = run.get("meta", {})
+        if not meta or meta.get("mode") != "CLOCK":
+            continue
+        ant = meta["antenna"]
+        loc = meta.get("location", "?")
+        cnd = meta.get("condition", "?")
+
+        for r in run["rows"]:
+            if r.get("type") != "S":
+                continue
+            marker = (r.get("marker") or "").strip().upper()
+            dist_m = DIST_MARKERS.get(marker)
+            if dist_m is None:
+                continue
+            try:
+                rssi = int(r.get("rssi_dbm") or -127)
+                if rssi <= -127:
+                    continue
+            except (ValueError, TypeError):
+                continue
+            by_dist[(ant, cnd)][dist_m].append(rssi)
+            by_loc[(loc, cnd)][dist_m][ant].append(rssi)
+
+    cov_stats: dict = {}
+    for (ant, cnd), dist_data in by_dist.items():
+        cov_stats[(ant, cnd)] = {d: _dist_stats(v) for d, v in dist_data.items()}
+
+    loc_stats: dict = {}
+    for (loc, cnd), dist_data in by_loc.items():
+        loc_stats[(loc, cnd)] = {
+            d: {ant: _dist_stats(v) for ant, v in ant_data.items()}
+            for d, ant_data in dist_data.items()
+        }
+    return cov_stats, loc_stats
+
+
+def coverage_distance(dist_stats: dict) -> float:
+    """
+    Distância máxima (m) onde rssi_p10 > COVERAGE_THR.
+    Interpola linearmente entre o último ponto OK e o primeiro FAIL.
+    """
+    if not dist_stats:
+        return 0.0
+    dists = sorted(d for d, s in dist_stats.items() if s is not None)
+    last_ok = 0.0
+    for i, d in enumerate(dists):
+        s = dist_stats[d]
+        if s is None:
+            continue
+        p10 = s["rssi_p10"]
+        if p10 > COVERAGE_THR:
+            last_ok = float(d)
+        elif i > 0:
+            prev_d = dists[i - 1]
+            sp = dist_stats.get(prev_d)
+            if sp and sp["rssi_p10"] > COVERAGE_THR:
+                p10_prev = sp["rssi_p10"]
+                frac = (COVERAGE_THR - p10_prev) / (p10 - p10_prev)
+                return round(prev_d + frac * (d - prev_d), 1)
+            return last_ok
+    return last_ok
+
+
+# ══════════════════════════════════════════════════════════════
+#  7. SCORE RF (0–100)
 # ══════════════════════════════════════════════════════════════
 # Pesos calibrados para o cenário real do Frotall:
 # Wi-Fi é usado para sync AP em bulk (3–10 m). Throughput define o tempo de
@@ -523,6 +618,9 @@ def run_pipeline(campaign_dir: Path, weights: dict):
         print(f"  {ant:6s}: {sc:5.1f}  {bar}")
 
 
+    # Tabelas de cobertura e localização
+    cov_stats, loc_stats = build_coverage_tables(valid_runs)
+
     # Exporta summary.csv
     report_dir = campaign_dir / "report"
     report_dir.mkdir(exist_ok=True)
@@ -538,7 +636,7 @@ def run_pipeline(campaign_dir: Path, weights: dict):
     # Relatório HTML
     out_html = report_dir / "report.html"
     render_report(out_html, campaign_dir.name, runs, scores, eff_weights,
-                  antenna_metrics, consolidated, raw_samples)
+                  antenna_metrics, consolidated, raw_samples, cov_stats, loc_stats)
     print(f"Relatório:   {out_html}")
     print(f"\nAbra o arquivo no navegador para ver os gráficos.")
 
@@ -554,7 +652,8 @@ def _nan_to_none(v):
 
 def render_report(out_path: Path, campaign_name: str, runs: list,
                   scores: dict, eff_weights: dict, antenna_metrics: dict,
-                  consolidated: dict, raw_samples: dict):
+                  consolidated: dict, raw_samples: dict,
+                  cov_stats: dict = None, loc_stats: dict = None):
 
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
     sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
@@ -740,6 +839,156 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
       <strong style="color:#e6edf3">{m['plr_median']:.1f}%</strong></div>
     <div style="color:#8b949e">Estabilidade
       <strong style="color:#e6edf3">σ {m['rssi_std']:.1f} dB</strong></div>
+  </div>
+</div>"""
+
+    # ── Tabela de cobertura por distância ─────────────────────
+    cov_stats  = cov_stats  or {}
+    loc_stats  = loc_stats  or {}
+    coverage_section_html = ""
+
+    def _rssi_cell(s):
+        if s is None:
+            return '<td style="color:#484f58;text-align:center">—</td>'
+        p10 = s["rssi_p10"]
+        if p10 > COVERAGE_GOOD:
+            bg, fg, ico = "#1a4731", "#3fb950", "✅"
+        elif p10 > COVERAGE_THR:
+            bg, fg, ico = "#2d2016", "#d29922", "⚠️"
+        else:
+            bg, fg, ico = "#3d1616", "#f85149", "❌"
+        return (f'<td style="background:{bg};color:{fg};text-align:center;'
+                f'font-weight:700;font-size:.85em">'
+                f'{p10:.0f} dBm {ico}'
+                f'<div style="font-size:.72em;font-weight:400;opacity:.7">'
+                f'med {s["rssi_median"]:.0f} · n={s["n"]}</div></td>')
+
+    def _cov_dist_cell(d_m):
+        if d_m <= 0:
+            return '<td style="color:#484f58;text-align:center">—</td>'
+        col = "#3fb950" if d_m >= 10 else "#d29922" if d_m >= 5 else "#f85149"
+        return (f'<td style="color:{col};font-weight:900;text-align:center;'
+                f'font-size:1.1em">~{d_m} m</td>')
+
+    # Coleta condições e distâncias disponíveis
+    all_cnds   = sorted(set(cnd for (_, cnd) in cov_stats.keys()))
+    all_dists  = sorted(set(d for ds in cov_stats.values() for d in ds.keys()))
+
+    if cov_stats and all_dists:
+        for cnd in all_cnds:
+            cnd_label = {"RUN": "motor LIGADO", "DES": "motor DESLIGADO"}.get(cnd, cnd)
+            header_cols = "".join(
+                f'<th style="text-align:center;color:#8b949e">{int(d)} m</th>'
+                for d in all_dists
+            )
+            rows_html = ""
+            ants_in_cov = sorted(
+                set(ant for (ant, c) in cov_stats.keys() if c == cnd),
+                key=lambda a: coverage_distance(cov_stats.get((a, cnd), {})),
+                reverse=True
+            )
+            for ant in ants_in_cov:
+                ds = cov_stats.get((ant, cnd), {})
+                cov_d = coverage_distance(ds)
+                col = ant_colors.get(ant, "#8b949e")
+                cells = "".join(_rssi_cell(ds.get(d)) for d in all_dists)
+                rows_html += (
+                    f'<tr>'
+                    f'<td style="font-weight:700;color:{col};white-space:nowrap">{ant}</td>'
+                    + cells
+                    + _cov_dist_cell(cov_d)
+                    + '</tr>'
+                )
+            dist_header = "".join(
+                f'<th style="text-align:center;color:#58a6ff">{int(d)} m</th>'
+                for d in all_dists
+            )
+            coverage_section_html += f"""
+<div style="margin-bottom:24px">
+  <div style="font-size:.7em;text-transform:uppercase;letter-spacing:.1em;
+              color:#8b949e;margin-bottom:6px">Cobertura por distância — {cnd_label}</div>
+  <div style="font-size:.72em;color:#484f58;margin-bottom:8px">
+    RSSI P10 (pior 10% das amostras) · ✅ &gt; {COVERAGE_GOOD} dBm · ⚠️ {COVERAGE_THR}–{COVERAGE_GOOD} dBm · ❌ &lt; {COVERAGE_THR} dBm
+  </div>
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:.88em">
+    <thead><tr>
+      <th style="text-align:left;color:#8b949e">Antena</th>
+      {header_cols}
+      <th style="text-align:center;color:#58a6ff">Alcance est.</th>
+    </tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+  </div>
+  <div style="font-size:.68em;color:#484f58;margin-top:6px">
+    Alcance estimado = maior distância onde RSSI P10 &gt; {COVERAGE_THR} dBm (interpolado).
+    Teste: CLOCK com marcadores {", ".join(f"{int(d)}M" for d in all_dists)}.
+  </div>
+</div>"""
+
+    # ── Tabela de comparação de locais de instalação ────────────
+    location_section_html = ""
+    all_locs = sorted(set(loc for (loc, _) in loc_stats.keys()))
+    loc_dists = sorted(set(d for ds in loc_stats.values() for d in ds.keys()))
+
+    # Só mostra se há mais de um local distinto
+    if len(all_locs) > 1 and loc_dists:
+        for cnd in sorted(set(cnd for (_, cnd) in loc_stats.keys())):
+            cnd_label = {"RUN": "motor LIGADO", "DES": "motor DESLIGADO"}.get(cnd, cnd)
+            locs_in = [l for (l, c) in loc_stats.keys() if c == cnd]
+            if not locs_in:
+                continue
+            # Coleta todas as antenas presentes nesta condição
+            ants_in_loc = sorted(set(
+                ant for loc in locs_in
+                for d_data in loc_stats.get((loc, cnd), {}).values()
+                for ant in d_data.keys()
+            ))
+            for ant in ants_in_loc:
+                rows_html = ""
+                ant_col = ant_colors.get(ant, "#8b949e")
+                locs_sorted = sorted(
+                    locs_in,
+                    key=lambda l: coverage_distance(
+                        {d: loc_stats[(l, cnd)][d].get(ant) for d in loc_dists
+                         if d in loc_stats.get((l, cnd), {})}
+                    ),
+                    reverse=True
+                )
+                for loc in locs_sorted:
+                    ld = loc_stats.get((loc, cnd), {})
+                    cells = "".join(
+                        _rssi_cell(ld.get(d, {}).get(ant)) for d in loc_dists
+                    )
+                    cov_d = coverage_distance(
+                        {d: ld[d].get(ant) for d in loc_dists if d in ld}
+                    )
+                    rows_html += (
+                        f'<tr>'
+                        f'<td style="font-weight:700;color:#e6edf3">{loc}</td>'
+                        + cells
+                        + _cov_dist_cell(cov_d)
+                        + '</tr>'
+                    )
+                header_cols = "".join(
+                    f'<th style="text-align:center;color:#8b949e">{int(d)} m</th>'
+                    for d in loc_dists
+                )
+                location_section_html += f"""
+<div style="margin-bottom:24px">
+  <div style="font-size:.7em;text-transform:uppercase;letter-spacing:.1em;
+              color:#8b949e;margin-bottom:6px">
+    Posição de instalação — {ant_col and f'<span style="color:{ant_col}">{ant}</span>'} — {cnd_label}
+  </div>
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:.88em">
+    <thead><tr>
+      <th style="text-align:left;color:#8b949e">Local</th>
+      {header_cols}
+      <th style="text-align:center;color:#58a6ff">Alcance est.</th>
+    </tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
   </div>
 </div>"""
 
@@ -1027,6 +1276,10 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 {winner_html}
+
+{f'<h2>Cobertura por Distância</h2><div class="card">{coverage_section_html}</div>' if coverage_section_html else ''}
+
+{f'<h2>Posição de Instalação na Máquina</h2><div class="card">{location_section_html}</div>' if location_section_html else ''}
 
 <h2>Ranking — Score RF Composto</h2>
 <p class="chart-desc">Score 0–100 relativo às antenas desta campanha — 100 = melhor, 0 = pior.
