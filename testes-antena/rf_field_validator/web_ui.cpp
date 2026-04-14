@@ -122,6 +122,27 @@ a.del{color:#f85149}
   </div>
 </div>
 
+<div class="panel col" id="p-ds">
+  <div class="ph" onclick="tp('p-ds')"><h3>Dist&#xE2;ncia estimada</h3></div>
+  <div class="pc">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span id="dv" style="font-size:1.6em;font-weight:bold;color:#8b949e">&#x2014;</span>
+      <button class="bp" onclick="calRef()">Calibrar a 1 m</button>
+    </div>
+    <div id="dw" style="font-size:.75em;color:#d29922;margin-bottom:6px">
+      &#x26A0; Fique a 1 m do celular e pressione Calibrar para ativar
+    </div>
+    <div class="bw" style="height:7px"><div class="bf" id="db" style="height:7px;width:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:.67em;color:#484f58;margin-top:2px">
+      <span>0</span><span>5 m</span><span>10 m</span><span>15 m</span><span>20 m</span>
+    </div>
+    <label style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:.8em;color:#8b949e">
+      <input type="checkbox" id="amtog"> Auto-mark 3/5/10/15 m durante CLOCK
+    </label>
+    <div id="dm" class="msg"></div>
+  </div>
+</div>
+
 <div class="panel" id="p-cf">
   <div class="ph" onclick="tp('p-cf')"><h3>Configurar</h3></div>
   <div class="pc">
@@ -323,10 +344,72 @@ function dsp(){
   _cx.strokeStyle=col;_cx.lineWidth=1.5;_cx.setLineDash([]);_cx.stroke();
 }
 
+// ── Distância estimada (log-distance path-loss model) ─────────
+// d = 10^((RSSI_ref - RSSI) / (10 * n)),  n=2.5 outdoor Wi-Fi
+var _r1m=parseFloat(localStorage.getItem('rfv_r1m')||'NaN');
+var _PLN=2.5;
+var _amkd={};              // limiares já marcados nesta sessão CLOCK
+var _THRS=[3,5,10,15];     // metros para auto-mark
+var _TLBL=['3M','5M','10M','15M'];
+var _HYST=1.5;             // histerese (m) para resetar um limiar
+var _cst='IDLE';           // estado atual (atualizado por updSt)
+
+function _avgRssi(){
+  if(!_rh.length)return -127;
+  var n=Math.min(5,_rh.length),s=0;
+  for(var i=_rh.length-n;i<_rh.length;i++)s+=_rh[i];
+  return s/n;
+}
+
+function calRef(){
+  var r=_avgRssi();
+  if(r<=-127){msg('dm',false,'Sem RSSI — aguarde Wi-Fi');return;}
+  _r1m=Math.round(r);
+  localStorage.setItem('rfv_r1m',String(_r1m));
+  document.getElementById('dw').style.display='none';
+  msg('dm',true,'Ref 1 m = '+_r1m+' dBm — pode abrir o painel e afastar');
+  updDist();
+}
+
+function updDist(){
+  var dv=document.getElementById('dv');
+  var db=document.getElementById('db');
+  var dw=document.getElementById('dw');
+  if(!dv)return;
+  if(isNaN(_r1m)){
+    dv.textContent='—';dv.style.color='#8b949e';
+    if(dw)dw.style.display='block';
+    return;
+  }
+  if(dw)dw.style.display='none';
+  var r=_avgRssi();
+  if(r<=-127){dv.textContent='—';dv.style.color='#8b949e';return;}
+  var d=Math.pow(10,(_r1m-r)/(10*_PLN));
+  var col=d<4?'#3fb950':d<8?'#d29922':'#58a6ff';
+  dv.textContent='~'+d.toFixed(1)+' m';
+  dv.style.color=col;
+  db.style.width=Math.min(100,d/20*100)+'%';
+  db.style.background=col;
+  // Auto-mark: envia MARK ao cruzar cada limiar durante CLOCK
+  var amEl=document.getElementById('amtog');
+  if(amEl&&amEl.checked&&_cst==='RUNNING_CLOCK'){
+    _THRS.forEach(function(t,i){
+      if(!_amkd[t]&&d>=t){
+        _amkd[t]=true;
+        post('action=mark&label='+_TLBL[i],function(r2){msg('dm',r2.ok,'Auto-mark: '+_TLBL[i]);});
+      }
+      if(_amkd[t]&&d<t-_HYST)_amkd[t]=false;
+    });
+  }else if(_cst!=='RUNNING_CLOCK'){
+    _amkd={};
+  }
+}
+
 // ── Status ────────────────────────────────────────────────────
 var _wr=false;
 function updSt(){
   fetch('/status').then(function(r){return r.json();}).then(function(d){
+    _cst=d.state;
     var sb=document.getElementById('sb');
     sb.textContent=d.state;sb.className=SC[d.state]||'si';
     var run=d.elapsed_ms>0;
@@ -347,6 +430,7 @@ function updSt(){
     document.getElementById('rssi-b').style.width=rp+'%';
     document.getElementById('rssi-b').style.background=rc;
     if(rv!==-127){_rh.push(rv);if(_rh.length>60)_rh.shift();dsp();}
+    updDist();
     document.getElementById('temp-v').textContent=d.temp_c!=null?d.temp_c.toFixed(1)+'\u00b0C':'--';
     document.getElementById('samp').textContent=d.samples;
     document.getElementById('ring').textContent=d.ring+' linhas';
@@ -372,7 +456,7 @@ function updSt(){
     }else if(d.state==='RUNNING_WALK'){
       dc='#58a6ff';dt='Coletando RSSI contínuo a 2 Hz — mova-se pelo ambiente';
     }else if(d.state==='RUNNING_CLOCK'){
-      dc='#58a6ff';dt='Mapeando RSSI por posição — use os botões de Marcar';
+      dc='#58a6ff';dt='Mapeando RSSI por posição — marque distâncias/locais ou use auto-mark';
     }else if(d.state==='RUNNING_BURN'){
       dc='#58a6ff';dt='Medindo throughput TCP + PLR — tcp_sink.py deve estar ativo no notebook';
     }else if(d.state==='RUNNING_BURN3'){
