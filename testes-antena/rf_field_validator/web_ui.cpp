@@ -185,16 +185,21 @@ a.del{color:#f85149}
 <div class="panel col" id="p-mk">
   <div class="ph" onclick="tp('p-mk')"><h3>Marcar &#x2014; CLOCK</h3></div>
   <div class="pc">
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+    <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Distância do celular</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
       <button class="bp" onclick="qmark('3M')">3 m</button>
       <button class="bp" onclick="qmark('5M')">5 m</button>
       <button class="bp" onclick="qmark('10M')">10 m</button>
       <button class="bp" onclick="qmark('15M')">15 m</button>
+    </div>
+    <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Posi&#xE7;&#xE3;o na m&#xE1;quina</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
       <button class="bp" onclick="qmark('CABINE')">Cabine</button>
       <button class="bp" onclick="qmark('MOTOR')">Motor</button>
       <button class="bp" onclick="qmark('FRENTE')">Frente</button>
-      <button class="bp" onclick="qmark('TRAS')">Trás</button>
+      <button class="bp" onclick="qmark('TRAS')">Tr&#xE1;s</button>
     </div>
+    <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Livre</div>
     <div style="display:flex;gap:6px">
       <input type="text" id="mlbl" value="P1" maxlength="8" style="flex:1">
       <button style="width:auto;padding:7px 14px" onclick="sendMark()">Marcar</button>
