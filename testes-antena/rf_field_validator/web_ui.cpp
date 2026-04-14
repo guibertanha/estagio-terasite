@@ -183,19 +183,6 @@ a.del{color:#f85149}
         <div class="tip">Fa&#xE7;a um trajeto sistem&#xE1;tico &#x2014; n&#xE3;o aleat&#xF3;rio</div>
         <div class="tip">Use <strong>WALK cold</strong> se o Wi-Fi ainda n&#xE3;o conectou (medi&#xE7;&#xE3;o offline)</div>
       </div>
-      <div class="dst-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span id="dv-walk" style="font-size:1.3em;font-weight:bold;color:#8b949e">&#x2014; m</span>
-          <span id="ds-walk" style="font-size:.68em;color:#484f58"></span>
-        </div>
-        <div class="bw" style="height:5px"><div class="bf" id="db-walk" style="height:5px;width:0%"></div></div>
-        <div style="display:flex;justify-content:space-between;font-size:.62em;color:#484f58;margin-top:2px"><span>0</span><span>5m</span><span>10m</span><span>15m</span><span>20m</span></div>
-        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
-          <button class="bp" onclick="calRef()">Calibrar 1 m</button>
-          <span id="cal-walk" style="font-size:.7em;color:#484f58"></span>
-        </div>
-        <div style="font-size:.62em;color:#484f58;margin-top:4px">Posicione o celular a 1 m do ESP32 e toque em Calibrar.</div>
-      </div>
       <div class="g2" style="margin-top:10px">
         <button class="bs" onclick="cmd('start_walk')">&#x25B6; Iniciar WALK</button>
         <button class="bs" onclick="cmd('start_walk_cold')">&#x25B6; WALK cold</button>
@@ -212,22 +199,6 @@ a.del{color:#f85149}
         <div class="tip">Marque assim que chegar &#x2014; as amostras seguintes ficam naquele ponto</div>
         <div class="tip">Teste de dist&#xE2;ncia: use 3/5/10/15 m em ordem crescente</div>
         <div class="tip">Mapeamento de zona: use Cabine/Motor/Frente/Tr&#xE1;s em qualquer ordem</div>
-      </div>
-      <div class="dst-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span id="dv-clock" style="font-size:1.3em;font-weight:bold;color:#8b949e">&#x2014; m</span>
-          <span id="ds-clock" style="font-size:.68em;color:#484f58"></span>
-        </div>
-        <div class="bw" style="height:5px"><div class="bf" id="db-clock" style="height:5px;width:0%"></div></div>
-        <div style="display:flex;justify-content:space-between;font-size:.62em;color:#484f58;margin-top:2px"><span>0</span><span>5m</span><span>10m</span><span>15m</span><span>20m</span></div>
-        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
-          <button class="bp" onclick="calRef()">Calibrar 1 m</button>
-          <span id="cal-clock" style="font-size:.7em;color:#484f58"></span>
-        </div>
-        <div style="font-size:.62em;color:#484f58;margin-top:4px">Calibre antes de começar: celular a 1 m do ESP32.</div>
-        <label style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:.78em;color:#8b949e">
-          <input type="checkbox" id="amtog"> Auto-mark 3/5/10/15 m
-        </label>
       </div>
       <div style="margin-top:10px">
         <div style="font-size:.7em;color:#484f58;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Dist&#xE2;ncia do celular</div>
@@ -349,9 +320,11 @@ function stopT(){
 // ── Messages ─────────────────────────────────────────────────
 function msg(id,ok,t,w){
   var e=document.getElementById(id);
+  if(!e)return;
   e.className='msg '+(w?'mw':ok?'mo':'me');
   e.textContent=t;e.style.display='block';
-  setTimeout(function(){e.style.display='none';},3500);
+  if(e._mto)clearTimeout(e._mto);
+  e._mto=setTimeout(function(){e.style.display='none';},ok?8000:12000);
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────
@@ -368,7 +341,6 @@ function selMode(m){
   ['walk','clock','burn'].forEach(function(x){
     document.getElementById('md-'+x).style.display=(x===m?'block':'none');
   });
-  updDist();
 }
 function desMode(){
   _mode=null;
@@ -380,8 +352,9 @@ function desMode(){
 function _dmId(){return _mode?'dm-'+_mode:'cm';}
 
 function cmd(a){
-  // BURN: confirmação para triplicata
-  if(a==='start_burn'&&!confirm('Executar BURN simples? (recomendado: 3x por antena/posição)'))return;
+  var isStart=a.indexOf('start_')===0;
+  if(isStart&&_cst==='IDLE'){msg(_dmId(),false,'ESP32 sem Wi-Fi — aguarde conectar');return;}
+  if(isStart&&_cst!=='READY'){msg(_dmId(),false,'Configure antena/local/condição primeiro (painel Configuração)');return;}
   post('action='+a,function(r){msg(_dmId(),r.ok,r.msg);});
 }
 function qmark(l){document.getElementById('mlbl').value=l;sendMark();}
@@ -445,69 +418,7 @@ function dsp(){
   _cx.strokeStyle=col;_cx.lineWidth=1.5;_cx.setLineDash([]);_cx.stroke();
 }
 
-// ── Distância estimada (log-distance path-loss model) ─────────
-// d = 10^((RSSI_ref - RSSI) / (10 * n)),  n=2.5 outdoor Wi-Fi
-var _r1m=parseFloat(localStorage.getItem('rfv_r1m')||'NaN');
-var _PLN=2.5;
-var _amkd={};              // limiares já marcados nesta sessão CLOCK
-var _THRS=[3,5,10,15];     // metros para auto-mark
-var _TLBL=['3M','5M','10M','15M'];
-var _HYST=1.5;             // histerese (m) para resetar um limiar
 var _cst='IDLE';           // estado atual (atualizado por updSt)
-
-function _avgRssi(){
-  if(!_rh.length)return -127;
-  var n=Math.min(5,_rh.length),s=0;
-  for(var i=_rh.length-n;i<_rh.length;i++)s+=_rh[i];
-  return s/n;
-}
-
-function calRef(){
-  var r=_avgRssi();
-  if(r<=-127){msg(_dmId(),false,'Sem RSSI — aguarde Wi-Fi');return;}
-  _r1m=Math.round(r);
-  localStorage.setItem('rfv_r1m',String(_r1m));
-  msg(_dmId(),true,'Ref 1 m = '+_r1m+' dBm — agora afaste-se');
-  updDist();
-}
-
-function updDist(){
-  if(!_mode||_mode==='burn')return;
-  var dv=document.getElementById('dv-'+_mode);
-  var db=document.getElementById('db-'+_mode);
-  var ds=document.getElementById('ds-'+_mode);
-  var cl=document.getElementById('cal-'+_mode);
-  if(!dv)return;
-  if(cl)cl.textContent=isNaN(_r1m)?'sem calibração':('ref '+_r1m+' dBm');
-  var d=NaN;
-  if(!isNaN(_r1m)){
-    var r=_avgRssi();
-    if(r>-127)d=Math.pow(10,(_r1m-r)/(10*_PLN));
-  }
-  if(isNaN(d)){
-    dv.textContent='— m';dv.style.color='#8b949e';
-    if(ds)ds.textContent=isNaN(_r1m)?'calibre 1 m primeiro':'aguardando RSSI';
-    db.style.width='0%';return;
-  }
-  var col=d<4?'#3fb950':d<8?'#d29922':d<15?'#58a6ff':'#f85149';
-  dv.textContent='~'+d.toFixed(1)+' m';dv.style.color=col;
-  if(ds)ds.textContent='RSSI '+_avgRssi().toFixed(0)+' dBm';
-  db.style.width=Math.min(100,d/20*100)+'%';
-  db.style.background=col;
-  // Auto-mark em CLOCK
-  var amEl=document.getElementById('amtog');
-  if(amEl&&amEl.checked&&_cst==='RUNNING_CLOCK'){
-    _THRS.forEach(function(t,i){
-      if(!_amkd[t]&&d>=t){
-        _amkd[t]=true;
-        post('action=mark&label='+_TLBL[i],function(r2){msg('dm-clock',r2.ok,'Auto-mark: '+_TLBL[i]);});
-      }
-      if(_amkd[t]&&d<t-_HYST)_amkd[t]=false;
-    });
-  }else if(_cst!=='RUNNING_CLOCK'){
-    _amkd={};
-  }
-}
 
 // ── Status ────────────────────────────────────────────────────
 var _wr=false;
@@ -545,7 +456,6 @@ function updSt(){
     document.getElementById('rssi-b').style.width=rp+'%';
     document.getElementById('rssi-b').style.background=rc;
     if(rv!==-127){_rh.push(rv);if(_rh.length>60)_rh.shift();dsp();}
-    updDist();
     document.getElementById('temp-v').textContent=d.temp_c!=null?d.temp_c.toFixed(1)+'\u00b0C':'--';
     document.getElementById('samp').textContent=d.samples;
     document.getElementById('ring').textContent=d.ring+' linhas';
