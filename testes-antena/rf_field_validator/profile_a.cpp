@@ -79,7 +79,9 @@ static uint8_t _tcp_buf[TCP_BUF_SIZE];
 static uint32_t _run_tput_phase() {
     WiFiClient client;
     if (!client.connect(g_tcp_host, TCP_TARGET_PORT)) {
-        // Servidor tcp_sink.py não disponível — registra 0 e espera o tempo normal
+        // Servidor tcp_sink.py inacessível — degrada (tput=0), run continua normalmente
+        weblog_printf("[BURN] tcp_sink %s:%d inacessível — tput=0, run continua\n",
+                      g_tcp_host, TCP_TARGET_PORT);
         vTaskDelay(pdMS_TO_TICKS(TPUT_PHASE_MS));
         return 0;
     }
@@ -88,9 +90,24 @@ static uint32_t _run_tput_phase() {
 
     uint32_t bytes_sent = 0;
     uint32_t end = millis() + TPUT_PHASE_MS;
-    while (millis() < end && client.connected()) {
-        int written = client.write(_tcp_buf, TCP_BUF_SIZE);
-        if (written > 0) bytes_sent += written;
+    uint8_t  zero_streak = 0;   // writes consecutivos retornando 0 → TCP travado/morto
+
+    while (millis() < end) {
+        if (!client.connected() || WiFi.status() != WL_CONNECTED) {
+            weblog_println("[BURN] link TCP perdido mid-stream — tput parcial");
+            break;
+        }
+        size_t written = client.write(_tcp_buf, TCP_BUF_SIZE);
+        if (written > 0) {
+            bytes_sent += written;
+            zero_streak = 0;
+        } else {
+            // 10 ciclos seguidos sem enviar → conexão travada silenciosamente
+            if (++zero_streak >= 10) {
+                weblog_println("[BURN] TCP sem progresso — encerrando fase tput");
+                break;
+            }
+        }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
     client.stop();

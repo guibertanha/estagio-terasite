@@ -29,8 +29,15 @@ CSV_HEADER = [
     "marker","block","notes",
 ]
 
+# Regex principal: ancora condição em DES|RUN para tolerar underscore no location
+# (ex: UNDER_SEAT, BEHIND_SEAT). Antena aceita ponto (A5.1) mas NÃO underscore.
 FILENAME_RE = re.compile(
-    r"^(WALK|CLOCK|BURN)_([A-Za-z0-9]+)_([A-Za-z0-9]+)_([A-Za-z0-9]+)_R(\d{2})\.csv$",
+    r"^(WALK|CLOCK|BURN)_([A-Za-z0-9.]+)_(.+?)_(DES|RUN)_R(\d{2})\.csv$",
+    re.IGNORECASE
+)
+# Fallback: condição genérica sem underscore no location (retrocompatível)
+FILENAME_RE_LOOSE = re.compile(
+    r"^(WALK|CLOCK|BURN)_([A-Za-z0-9.]+)_([A-Za-z0-9._]+)_([A-Za-z0-9]+)_R(\d{2})\.csv$",
     re.IGNORECASE
 )
 
@@ -46,7 +53,7 @@ def _crc16(s: str) -> str:
 def ingest_file(path: Path) -> dict:
     result = {"path": str(path), "rows": [], "warnings": [], "meta": {}, "status": "VALID"}
 
-    m = FILENAME_RE.match(path.name)
+    m = FILENAME_RE.match(path.name) or FILENAME_RE_LOOSE.match(path.name)
     if m:
         result["meta"] = {
             "mode": m.group(1).upper(),
@@ -422,15 +429,23 @@ def compute_scores(antenna_metrics: dict, weights: dict) -> tuple:
     if not antenna_metrics:
         return {}, weights
 
-    def _norm_min(vals):  # menor = melhor
-        lo, hi = min(vals.values()), max(vals.values())
+    def _norm_min(vals):  # menor = melhor; robusto a NaN e faixa degenerada
+        clean = {k: float(v) for k, v in vals.items()
+                 if v is not None and not math.isnan(float(v))}
+        if not clean: return {k: 1.0 for k in vals}
+        lo, hi = min(clean.values()), max(clean.values())
         if hi == lo: return {k: 1.0 for k in vals}
-        return {k: 1.0 - (v - lo) / (hi - lo) for k, v in vals.items()}
+        return {k: 1.0 - (clean.get(k, lo) - lo) / (hi - lo)
+                if k in clean else 0.5 for k in vals}
 
-    def _norm_max(vals):  # maior = melhor
-        lo, hi = min(vals.values()), max(vals.values())
+    def _norm_max(vals):  # maior = melhor; robusto a NaN e faixa degenerada
+        clean = {k: float(v) for k, v in vals.items()
+                 if v is not None and not math.isnan(float(v))}
+        if not clean: return {k: 0.0 for k in vals}
+        lo, hi = min(clean.values()), max(clean.values())
         if hi == lo: return {k: 1.0 for k in vals}
-        return {k: (v - lo) / (hi - lo) for k, v in vals.items()}
+        return {k: (clean.get(k, lo) - lo) / (hi - lo)
+                if k in clean else 0.5 for k in vals}
 
     # Verifica se alguma antena tem dados de TTR (requer WALK)
     ttr_vals = {a: d.get("ttr_median_s", _TTR_NODATA) for a, d in antenna_metrics.items()}
@@ -469,11 +484,39 @@ def compute_scores(antenna_metrics: dict, weights: dict) -> tuple:
     return scores, eff_weights
 
 # ══════════════════════════════════════════════════════════════
-#  7. PIPELINE PRINCIPAL
+#  7. METADADOS DE CAMPO (campaign.json)
+# ══════════════════════════════════════════════════════════════
+def load_campaign_meta(campaign_dir: Path) -> dict:
+    """
+    Lê campaign.json da pasta da campanha (arquivo opcional).
+    Campos suportados:
+      machine_id, machine_family, macrozone, installation_point,
+      hotspot_pos, walk_type, diagnostic_note, media_ref, sa6_note
+    Retorna dict vazio se o arquivo não existir ou for inválido.
+    """
+    meta_path = campaign_dir / "campaign.json"
+    if not meta_path.exists():
+        return {}
+    try:
+        with open(meta_path, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("campaign.json deve ser um objeto JSON")
+        return data
+    except Exception as e:
+        print(f"  [AVISO] campaign.json inválido: {e}")
+        return {}
+
+# ══════════════════════════════════════════════════════════════
+#  8. PIPELINE PRINCIPAL
 # ══════════════════════════════════════════════════════════════
 def run_pipeline(campaign_dir: Path, weights: dict):
-    print(f"\nRF Field Validator — Parser N3.0")
+    print(f"\nRF Field Validator — Parser N3.1")
     print(f"Campanha: {campaign_dir}\n{'─'*50}")
+
+    campaign_meta = load_campaign_meta(campaign_dir)
+    if campaign_meta:
+        print(f"  [META] {campaign_meta}")
 
     # Localiza CSVs — tenta pasta direta, logs/ ou recursivo em subpastas
     logs_dir = campaign_dir / "logs"
@@ -636,12 +679,173 @@ def run_pipeline(campaign_dir: Path, weights: dict):
     # Relatório HTML
     out_html = report_dir / "report.html"
     render_report(out_html, campaign_dir.name, runs, scores, eff_weights,
-                  antenna_metrics, consolidated, raw_samples, cov_stats, loc_stats)
+                  antenna_metrics, consolidated, raw_samples, cov_stats, loc_stats,
+                  campaign_meta=campaign_meta)
     print(f"Relatório:   {out_html}")
     print(f"\nAbra o arquivo no navegador para ver os gráficos.")
 
 # ══════════════════════════════════════════════════════════════
-#  8. RELATÓRIO HTML
+#  9. SEÇÃO EXECUTIVA
+# ══════════════════════════════════════════════════════════════
+def _build_exec_section(campaign_meta: dict, scores: dict, antenna_metrics: dict,
+                        cov_stats: dict, ant_colors: dict) -> str:
+    """Gera bloco HTML de sumário executivo (para diretoria/chefes)."""
+    if not scores:
+        return ""
+
+    sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
+    winner = sorted_ants[0] if sorted_ants else None
+
+    # ── Alcance útil ─────────────────────────────────────────
+    reach_m = 0.0
+    for (ant, _cnd), ds in cov_stats.items():
+        if ant == winner:
+            d = coverage_distance(ds)
+            if d > reach_m:
+                reach_m = d
+
+    if reach_m >= 10:
+        reach_color, reach_label = "#3fb950", "Verde"
+        reach_detail = f"sincronização confiável até ~{reach_m:.0f} m"
+    elif reach_m >= 5:
+        reach_color, reach_label = "#d29922", "Amarelo"
+        reach_detail = f"sincronização possível com restrições (~{reach_m:.0f} m)"
+    elif reach_m > 0:
+        reach_color, reach_label = "#f85149", "Vermelho"
+        reach_detail = f"alcance limitado (~{reach_m:.0f} m) — uso não recomendado"
+    else:
+        # fallback: deduz do RSSI P10 do vencedor
+        rssi_fb = antenna_metrics.get(winner, {}).get("rssi_p10", -127.0)
+        if not math.isnan(rssi_fb):
+            if rssi_fb >= COVERAGE_GOOD:
+                reach_color, reach_label = "#3fb950", "Verde"
+                reach_detail = f"sinal forte (RSSI P10 {rssi_fb:.0f} dBm)"
+            elif rssi_fb >= COVERAGE_THR:
+                reach_color, reach_label = "#d29922", "Amarelo"
+                reach_detail = f"sinal marginal (RSSI P10 {rssi_fb:.0f} dBm)"
+            else:
+                reach_color, reach_label = "#f85149", "Vermelho"
+                reach_detail = f"sinal fraco (RSSI P10 {rssi_fb:.0f} dBm)"
+        else:
+            reach_color, reach_label, reach_detail = "#484f58", "—", "dados insuficientes"
+
+    # ── Ponto cego dominante ──────────────────────────────────
+    blind_spot = "—"
+    if winner and cov_stats:
+        for cnd_try in ("DES", "RUN"):
+            ds = cov_stats.get((winner, cnd_try), {})
+            for d in sorted(ds.keys()):
+                s = ds[d]
+                if s and s["rssi_p10"] < COVERAGE_THR:
+                    blind_spot = f"a partir de {int(d)} m"
+                    break
+            if blind_spot != "—":
+                break
+
+    # ── Risco principal (auto-detectado) ─────────────────────
+    main_risk = "Nenhum risco crítico identificado"
+    risk_color = "#3fb950"
+    if winner:
+        m = antenna_metrics.get(winner, {})
+        plr  = m.get("plr_median", 0.0) or 0.0
+        std  = m.get("rssi_std", 0.0) or 0.0
+        rssi = m.get("rssi_p10", -127.0)
+        tput = m.get("tput_median", 0.0) or 0.0
+        if math.isnan(rssi): rssi = -127.0
+        if plr > 10:
+            main_risk = f"Perda de pacotes elevada ({plr:.1f}%) — risco de corrupção de dados"
+            risk_color = "#f85149"
+        elif rssi < COVERAGE_THR:
+            main_risk = f"Sinal abaixo do limiar mínimo ({rssi:.0f} dBm) — conexão instável"
+            risk_color = "#f85149"
+        elif std > 8:
+            main_risk = f"Sinal instável (σ {std:.1f} dB) — quedas intermitentes possíveis"
+            risk_color = "#d29922"
+        elif 0 < reach_m < 5:
+            main_risk = "Alcance insuficiente para operação a ≥ 5 m"
+            risk_color = "#d29922"
+        elif 0 < tput < 1e6:
+            main_risk = f"Throughput baixo ({tput/1e6:.2f} Mbps) — sync de dados lento"
+            risk_color = "#d29922"
+
+    # ── Campos do campaign.json ───────────────────────────────
+    machine_id   = campaign_meta.get("machine_id", "")
+    machine_fam  = campaign_meta.get("machine_family", "")
+    macrozone    = campaign_meta.get("macrozone", "")
+    install_pt   = campaign_meta.get("installation_point", "")
+    diag_note    = campaign_meta.get("diagnostic_note", "")
+    media_ref    = campaign_meta.get("media_ref", "")
+    sa6_note     = campaign_meta.get("sa6_note", "")
+    machine_str  = " ".join(filter(None, [machine_fam, machine_id])) or "—"
+
+    winner_col = ant_colors.get(winner, "#3fb950") if winner else "#8b949e"
+    winner_sc  = scores.get(winner, 0)
+
+    # ── Diagnóstico complementar ──────────────────────────────
+    diag_items = []
+    if diag_note:
+        diag_items.append(f'<div style="margin-bottom:4px">'
+                          f'<strong style="color:#8b949e">Campo:</strong> {diag_note}</div>')
+    if sa6_note:
+        diag_items.append(f'<div style="margin-bottom:4px">'
+                          f'<strong style="color:#8b949e">SA6:</strong> {sa6_note}</div>')
+    if media_ref:
+        diag_items.append(f'<div style="margin-bottom:4px">'
+                          f'<strong style="color:#8b949e">Mídia:</strong> {media_ref}</div>')
+    diag_html = ("".join(diag_items) if diag_items
+                 else '<span style="color:#484f58;font-size:.82em">Não registrado</span>')
+
+    def _row(label, val, color="#c9d1d9"):
+        return (f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:baseline;padding:5px 0;border-bottom:1px solid #21262d">'
+                f'<span style="color:#8b949e;font-size:.82em">{label}</span>'
+                f'<span style="color:{color};font-weight:600;font-size:.88em">{val}</span>'
+                f'</div>')
+
+    return f"""
+<div style="background:linear-gradient(135deg,#161b22 0%,#0d1117 100%);
+            border:2px solid #30363d;border-radius:12px;padding:20px 24px;
+            margin-bottom:20px">
+  <div style="font-size:.7em;text-transform:uppercase;letter-spacing:.15em;
+              color:#58a6ff;margin-bottom:14px">&#128203; Sumário Executivo</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px">
+
+    <div>
+      <div style="font-size:.68em;color:#484f58;text-transform:uppercase;
+                  letter-spacing:.1em;margin-bottom:8px">Contexto</div>
+      {_row("Máquina", machine_str)}
+      {_row("Zona operacional", macrozone or "—")}
+      {_row("Ponto de instalação", install_pt or "—")}
+    </div>
+
+    <div>
+      <div style="font-size:.68em;color:#484f58;text-transform:uppercase;
+                  letter-spacing:.1em;margin-bottom:8px">Resultado RF</div>
+      {_row("Antena recomendada", winner or "—", winner_col)}
+      {_row("Score RF", f"{winner_sc:.1f} / 100", winner_col)}
+      <div style="padding:5px 0;border-bottom:1px solid #21262d;display:flex;
+                  justify-content:space-between;align-items:center">
+        <span style="color:#8b949e;font-size:.82em">Alcance útil</span>
+        <span style="background:{reach_color}22;color:{reach_color};font-weight:700;
+                     font-size:.8em;padding:2px 10px;border-radius:10px;
+                     border:1px solid {reach_color}55">{reach_label}</span>
+      </div>
+      {_row("Detalhe alcance", reach_detail)}
+      {_row("Ponto cego dominante", blind_spot)}
+    </div>
+
+    <div>
+      <div style="font-size:.68em;color:#484f58;text-transform:uppercase;
+                  letter-spacing:.1em;margin-bottom:8px">Risco e Observações</div>
+      {_row("Risco principal", main_risk, risk_color)}
+      <div style="margin-top:10px;font-size:.82em;line-height:1.7">{diag_html}</div>
+    </div>
+
+  </div>
+</div>"""
+
+# ══════════════════════════════════════════════════════════════
+#  10. RELATÓRIO HTML
 # ══════════════════════════════════════════════════════════════
 def _nan_to_none(v):
     if v is None: return None
@@ -653,7 +857,8 @@ def _nan_to_none(v):
 def render_report(out_path: Path, campaign_name: str, runs: list,
                   scores: dict, eff_weights: dict, antenna_metrics: dict,
                   consolidated: dict, raw_samples: dict,
-                  cov_stats: dict = None, loc_stats: dict = None):
+                  cov_stats: dict = None, loc_stats: dict = None,
+                  campaign_meta: dict = None):
 
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
     sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
@@ -734,8 +939,13 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
 
     # ── Heatmap matrix ─────────────────────────────────────────
     def _cell(val, norm_0_1, fmt):
-        if math.isnan(float(val if val is not None else float("nan"))):
+        try:
+            fv = float(val) if val is not None else float("nan")
+        except (TypeError, ValueError):
+            fv = float("nan")
+        if math.isnan(fv):
             return '<td style="color:#484f58">—</td>'
+        val = fv
         if norm_0_1 >= 0.66:
             bg, fg = "#1a4731", "#3fb950"
         elif norm_0_1 >= 0.33:
@@ -779,11 +989,21 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
     for ant in sorted_ants:
         m   = antenna_metrics[ant]
         col = ant_colors[ant]
-        v_min = m.get("rssi_min",    m["rssi_p10"])
-        v_p10 = m["rssi_p10"]
-        v_med = m.get("rssi_median", m["rssi_p10"])
-        v_p90 = m.get("rssi_p90",    m["rssi_p10"])
-        v_max = m.get("rssi_max",    m["rssi_p10"])
+        # Fallback seguro: se rssi_p10 for NaN, pula esta antena no gráfico
+        _p10_raw = m["rssi_p10"]
+        if _p10_raw is None or math.isnan(float(_p10_raw)):
+            continue
+        def _safe(val, fallback):
+            try:
+                fv = float(val)
+                return fallback if math.isnan(fv) else fv
+            except (TypeError, ValueError):
+                return fallback
+        v_p10 = float(_p10_raw)
+        v_min = _safe(m.get("rssi_min"),    v_p10)
+        v_med = _safe(m.get("rssi_median"), v_p10)
+        v_p90 = _safe(m.get("rssi_p90"),    v_p10)
+        v_max = _safe(m.get("rssi_max"),    v_p10)
         left  = _pct_pos(v_min)
         w_tot = _pct_pos(v_max) - left
         p10_l = _pct_pos(v_p10) - left
@@ -843,8 +1063,11 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
 </div>"""
 
     # ── Tabela de cobertura por distância ─────────────────────
-    cov_stats  = cov_stats  or {}
-    loc_stats  = loc_stats  or {}
+    cov_stats    = cov_stats    or {}
+    loc_stats    = loc_stats    or {}
+    campaign_meta = campaign_meta or {}
+    exec_section_html = _build_exec_section(
+        campaign_meta, scores, antenna_metrics, cov_stats, ant_colors)
     coverage_section_html = ""
 
     def _rssi_cell(s):
@@ -1274,6 +1497,8 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
     &nbsp;·&nbsp; {len(runs)} runs &nbsp;·&nbsp; {len(sorted_ants)} antenas
   </p>
 </div>
+
+{exec_section_html}
 
 {winner_html}
 
