@@ -49,4 +49,11 @@ ehthumbs.db
 
 # Grandes binários de dados que não devem ir ao repositório
 # (os PDFs de datasheets e PNGs de relatórios são mantidos intencionalmente)
+
+# Configurações locais de IA (não fazem parte do código)
 CLAUDE.md
+AGENTS.md
+.claude/
+
+# Notas internas de campo (perguntas/respostas com chefes, rascunhos)
+notes/
