@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Relatório RF — campanhas</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;
@@ -24,6 +25,7 @@ th{background:#161b22;color:#8b949e;font-size:10px;text-transform:uppercase;
 td{padding:8px 10px;border-bottom:1px solid #21262d;font-size:12px}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#1c2128}
+.chart-desc{font-size:12px;color:#484f58;margin:-6px 0 12px;line-height:1.6}
 footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
         padding-top:16px;border-top:1px solid #21262d}
 @media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
@@ -35,8 +37,8 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
   <h1>&#x1F4E1; Relatório RF de Campo</h1>
   <p style="color:#8b949e;font-size:13px;margin-top:4px">
     Campanha: <strong style="color:#c9d1d9">campanhas</strong>
-    &nbsp;·&nbsp; Gerado em 09/04/2026 19:35
-    &nbsp;·&nbsp; 20 runs &nbsp;·&nbsp; 5 antenas
+    &nbsp;·&nbsp; Gerado em 15/04/2026 00:14
+    &nbsp;·&nbsp; 46 runs &nbsp;·&nbsp; 5 antenas
   </p>
 </div>
 
@@ -51,9 +53,9 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
     <div style="font-size:2.2em;font-weight:900;color:#f0f6fc;
                 line-height:1.1">A53</div>
     <div style="color:#3fb950;font-weight:700;margin-top:4px">
-      Score RF: 100.0 / 100
+      Score RF: 93.3 / 100
       <span style="color:#484f58;font-weight:400;font-size:.85em;
-                   margin-left:8px">+23.3 pts vs A51</span>
+                   margin-left:8px">+4.3 pts vs A51</span>
     </div>
   </div>
   <div style="text-align:right;line-height:2;font-size:.85em">
@@ -68,87 +70,94 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
   </div>
 </div>
 
+
+
+
+
 <h2>Ranking — Score RF Composto</h2>
+<p class="chart-desc">Score 0–100 relativo às antenas desta campanha — 100 = melhor, 0 = pior.
+As mini-barras mostram quanto cada eixo contribuiu para o resultado.
+O radar mostra o perfil multidimensional normalizado.</p>
 <div class="grid2">
   <div class="card">
     
-<div style="margin-bottom:14px">
+<div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#1 A53 👑</span>
-    <span style="font-weight:900;font-size:1.3em;color:#3fb950">100.0</span>
+    <span style="font-weight:900;font-size:1.3em;color:#3fb950">93.3</span>
   </div>
-  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
-    <div style="background:#3fb950;height:100%;width:100%;border-radius:6px;
-                transition:width .6s ease"></div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#3fb950;height:100%;width:93%;border-radius:6px"></div>
   </div>
-  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
-    <span>RSSI P10: <strong style="color:#e6edf3">-63 dBm</strong></span>
-    <span>Throughput: <strong style="color:#e6edf3">3.46 Mbps</strong></span>
-    <span>PLR: <strong style="color:#e6edf3">0.0%</strong></span>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-63 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">3.46 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
   </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:60%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">60</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div></div>
 </div>
-<div style="margin-bottom:14px">
+<div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#2 A51</span>
-    <span style="font-weight:900;font-size:1.3em;color:#3fb950">76.7</span>
+    <span style="font-weight:900;font-size:1.3em;color:#3fb950">89.0</span>
   </div>
-  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
-    <div style="background:#3fb950;height:100%;width:76%;border-radius:6px;
-                transition:width .6s ease"></div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#3fb950;height:100%;width:89%;border-radius:6px"></div>
   </div>
-  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
-    <span>RSSI P10: <strong style="color:#e6edf3">-66 dBm</strong></span>
-    <span>Throughput: <strong style="color:#e6edf3">2.96 Mbps</strong></span>
-    <span>PLR: <strong style="color:#e6edf3">0.0%</strong></span>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-59 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">2.96 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
   </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:75%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">75</span></div></div>
 </div>
-<div style="margin-bottom:14px">
+<div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#3 A52</span>
-    <span style="font-weight:900;font-size:1.3em;color:#d29922">67.8</span>
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#3 A42</span>
+    <span style="font-weight:900;font-size:1.3em;color:#d29922">60.3</span>
   </div>
-  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
-    <div style="background:#d29922;height:100%;width:67%;border-radius:6px;
-                transition:width .6s ease"></div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#d29922;height:100%;width:60%;border-radius:6px"></div>
   </div>
-  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
-    <span>RSSI P10: <strong style="color:#e6edf3">-64 dBm</strong></span>
-    <span>Throughput: <strong style="color:#e6edf3">1.44 Mbps</strong></span>
-    <span>PLR: <strong style="color:#e6edf3">0.0%</strong></span>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-69 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">2.41 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
   </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:0%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">0</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:48%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">48</span></div></div>
 </div>
-<div style="margin-bottom:14px">
+<div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#4 A41</span>
-    <span style="font-weight:900;font-size:1.3em;color:#d29922">57.2</span>
+    <span style="font-weight:900;font-size:1.3em;color:#d29922">48.6</span>
   </div>
-  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
-    <div style="background:#d29922;height:100%;width:57%;border-radius:6px;
-                transition:width .6s ease"></div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#d29922;height:100%;width:48%;border-radius:6px"></div>
   </div>
-  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
-    <span>RSSI P10: <strong style="color:#e6edf3">-67 dBm</strong></span>
-    <span>Throughput: <strong style="color:#e6edf3">1.90 Mbps</strong></span>
-    <span>PLR: <strong style="color:#e6edf3">0.0%</strong></span>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-68 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">1.80 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
   </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:10%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">10</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:18%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">18</span></div></div>
 </div>
-<div style="margin-bottom:14px">
+<div style="margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#5 A42</span>
-    <span style="font-weight:900;font-size:1.3em;color:#d29922">52.8</span>
+    <span style="font-weight:700;font-size:1.05em;color:#e6edf3">#5 A52</span>
+    <span style="font-weight:900;font-size:1.3em;color:#d29922">47.2</span>
   </div>
-  <div style="background:#21262d;border-radius:6px;height:14px;overflow:hidden">
-    <div style="background:#d29922;height:100%;width:52%;border-radius:6px;
-                transition:width .6s ease"></div>
+  <div style="background:#21262d;border-radius:6px;height:12px;overflow:hidden;margin-bottom:6px">
+    <div style="background:#d29922;height:100%;width:47%;border-radius:6px"></div>
   </div>
-  <div style="display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8b949e">
-    <span>RSSI P10: <strong style="color:#e6edf3">-69 dBm</strong></span>
-    <span>Throughput: <strong style="color:#e6edf3">2.41 Mbps</strong></span>
-    <span>PLR: <strong style="color:#e6edf3">0.0%</strong></span>
+  <div style="font-size:10px;color:#484f58;margin-bottom:4px">
+    RSSI P10 <strong style="color:#c9d1d9">-64 dBm</strong>
+    &nbsp;·&nbsp; Tput <strong style="color:#c9d1d9">1.44 Mbps</strong>
+    &nbsp;·&nbsp; PLR <strong style="color:#c9d1d9">0.0%</strong>
   </div>
+  <div style="background:#0d1117;border-radius:4px;padding:6px 8px"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">PLR</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#3fb950;width:100%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">100</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">RSSI</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#58a6ff;width:50%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">50</span></div><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="width:28px;font-size:9px;color:#484f58">Tput</span><div style="flex:1;background:#0d1117;border-radius:3px;height:6px"><div style="background:#a371f7;width:0%;height:100%;border-radius:3px"></div></div><span style="width:28px;font-size:9px;color:#8b949e;text-align:right">0</span></div></div>
 </div>
-    <p style="font-size:10px;color:#484f58;margin-top:8px">
-      Score = 40% PLR + 0% TTR + 33% RSSI P10 + 27% Throughput (min-max)
+    <p style="font-size:10px;color:#484f58;margin-top:8px;line-height:1.6">
+      Score = 39% PLR + 0% TTR + 17% RSSI P10 + 44% Throughput (min-max)
     </p>
   </div>
   <div class="card" style="display:flex;flex-direction:column;align-items:center">
@@ -159,6 +168,7 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 <h2>Tabela Comparativa</h2>
+<p class="chart-desc">Valores absolutos por antena. Verde = melhor da campanha, vermelho = pior, amarelo = intermediário.</p>
 <div class="card" style="padding:0;overflow:hidden">
 <table>
   <tr>
@@ -169,11 +179,12 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
     <th>Estabilidade</th>
     <th>Score</th>
   </tr>
-  <tr><td style='font-weight:700;color:#e6edf3'>🥇 A53</td><td style="background:#1a4731;color:#3fb950;font-weight:700">-63 dBm</td><td style="background:#1a4731;color:#3fb950;font-weight:700">3.46 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.7 dB</td><td style="background:#1a4731;color:#3fb950;font-weight:700">100.0</td></tr><tr><td style='font-weight:700;color:#e6edf3'>🥈 A51</td><td style="background:#2d2016;color:#d29922;font-weight:700">-66 dBm</td><td style="background:#1a4731;color:#3fb950;font-weight:700">2.96 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.6 dB</td><td style="background:#2d2016;color:#d29922;font-weight:700">76.7</td></tr><tr><td style='font-weight:700;color:#e6edf3'>🥉 A52</td><td style="background:#1a4731;color:#3fb950;font-weight:700">-64 dBm</td><td style="background:#3d1616;color:#f85149;font-weight:700">1.44 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.7 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">67.8</td></tr><tr><td style='font-weight:700;color:#e6edf3'>#4 A41</td><td style="background:#2d2016;color:#d29922;font-weight:700">-67 dBm</td><td style="background:#3d1616;color:#f85149;font-weight:700">1.90 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#1a4731;color:#3fb950;font-weight:700">σ 1.4 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">57.2</td></tr><tr><td style='font-weight:700;color:#e6edf3'>#5 A42</td><td style="background:#3d1616;color:#f85149;font-weight:700">-69 dBm</td><td style="background:#2d2016;color:#d29922;font-weight:700">2.41 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.6 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">52.8</td></tr>
+  <tr><td style='font-weight:700;color:#e6edf3'>🥇 A53</td><td style="background:#2d2016;color:#d29922;font-weight:700">-63 dBm</td><td style="background:#1a4731;color:#3fb950;font-weight:700">3.46 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#1a4731;color:#3fb950;font-weight:700">σ 1.7 dB</td><td style="background:#1a4731;color:#3fb950;font-weight:700">93.3</td></tr><tr><td style='font-weight:700;color:#e6edf3'>🥈 A51</td><td style="background:#1a4731;color:#3fb950;font-weight:700">-59 dBm</td><td style="background:#1a4731;color:#3fb950;font-weight:700">2.96 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#2d2016;color:#d29922;font-weight:700">σ 1.8 dB</td><td style="background:#1a4731;color:#3fb950;font-weight:700">89.0</td></tr><tr><td style='font-weight:700;color:#e6edf3'>🥉 A42</td><td style="background:#3d1616;color:#f85149;font-weight:700">-69 dBm</td><td style="background:#2d2016;color:#d29922;font-weight:700">2.41 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#1a4731;color:#3fb950;font-weight:700">σ 1.6 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">60.3</td></tr><tr><td style='font-weight:700;color:#e6edf3'>#4 A41</td><td style="background:#3d1616;color:#f85149;font-weight:700">-68 dBm</td><td style="background:#3d1616;color:#f85149;font-weight:700">1.80 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#3d1616;color:#f85149;font-weight:700">σ 1.9 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">48.6</td></tr><tr><td style='font-weight:700;color:#e6edf3'>#5 A52</td><td style="background:#2d2016;color:#d29922;font-weight:700">-64 dBm</td><td style="background:#3d1616;color:#f85149;font-weight:700">1.44 Mbps</td><td style="background:#1a4731;color:#3fb950;font-weight:700">0.0%</td><td style="background:#1a4731;color:#3fb950;font-weight:700">σ 1.7 dB</td><td style="background:#3d1616;color:#f85149;font-weight:700">47.2</td></tr>
 </table>
 </div>
 
 <h2>Distribuição RSSI por Antena</h2>
+<p class="chart-desc">Faixa de variação do sinal. Barra escura = range total, barra colorida = P10–P90 (80% central das amostras), traço branco = mediana.</p>
 <div class="card">
   <div style="display:flex;gap:20px;font-size:10px;color:#484f58;
               margin-bottom:12px;align-items:center">
@@ -188,11 +199,11 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
                font-weight:700">A53</span>
   <div style="flex:1;position:relative;height:22px;background:#0d1117;
               border-radius:4px;overflow:hidden">
-    <div style="position:absolute;left:68.8%;width:25.0%;height:100%;
+    <div style="position:absolute;left:55.0%;width:20.0%;height:100%;
                 background:#58a6ff22;border-radius:4px"></div>
-    <div style="position:absolute;left:68.8%;width:25.0%;height:100%;
+    <div style="position:absolute;left:55.0%;width:20.0%;height:100%;
                 background:#58a6ff88"></div>
-    <div style="position:absolute;left:81.2%;width:3px;height:100%;
+    <div style="position:absolute;left:65.0%;width:3px;height:100%;
                 background:#f0f6fc"></div>
   </div>
   <span style="width:56px;font-size:.82em;color:#8b949e">-61 dBm</span>
@@ -202,64 +213,65 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
                font-weight:700">A51</span>
   <div style="flex:1;position:relative;height:22px;background:#0d1117;
               border-radius:4px;overflow:hidden">
-    <div style="position:absolute;left:50.0%;width:31.200000000000003%;height:100%;
+    <div style="position:absolute;left:70.0%;width:15.0%;height:100%;
                 background:#3fb95022;border-radius:4px"></div>
-    <div style="position:absolute;left:50.0%;width:31.200000000000003%;height:100%;
+    <div style="position:absolute;left:75.0%;width:10.0%;height:100%;
                 background:#3fb95088"></div>
-    <div style="position:absolute;left:68.8%;width:3px;height:100%;
+    <div style="position:absolute;left:75.0%;width:3px;height:100%;
                 background:#f0f6fc"></div>
   </div>
-  <span style="width:56px;font-size:.82em;color:#8b949e">-63 dBm</span>
-</div>
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
-               font-weight:700">A52</span>
-  <div style="flex:1;position:relative;height:22px;background:#0d1117;
-              border-radius:4px;overflow:hidden">
-    <div style="position:absolute;left:62.5%;width:18.700000000000003%;height:100%;
-                background:#f7816622;border-radius:4px"></div>
-    <div style="position:absolute;left:62.5%;width:18.700000000000003%;height:100%;
-                background:#f7816688"></div>
-    <div style="position:absolute;left:68.8%;width:3px;height:100%;
-                background:#f0f6fc"></div>
-  </div>
-  <span style="width:56px;font-size:.82em;color:#8b949e">-63 dBm</span>
-</div>
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
-               font-weight:700">A41</span>
-  <div style="flex:1;position:relative;height:22px;background:#0d1117;
-              border-radius:4px;overflow:hidden">
-    <div style="position:absolute;left:43.8%;width:12.400000000000006%;height:100%;
-                background:#d2992222;border-radius:4px"></div>
-    <div style="position:absolute;left:43.8%;width:12.400000000000006%;height:100%;
-                background:#d2992288"></div>
-    <div style="position:absolute;left:43.8%;width:3px;height:100%;
-                background:#f0f6fc"></div>
-  </div>
-  <span style="width:56px;font-size:.82em;color:#8b949e">-67 dBm</span>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-59 dBm</span>
 </div>
 <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
   <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
                font-weight:700">A42</span>
   <div style="flex:1;position:relative;height:22px;background:#0d1117;
               border-radius:4px;overflow:hidden">
-    <div style="position:absolute;left:31.2%;width:18.8%;height:100%;
-                background:#a371f722;border-radius:4px"></div>
-    <div style="position:absolute;left:31.2%;width:18.8%;height:100%;
-                background:#a371f788"></div>
-    <div style="position:absolute;left:37.5%;width:3px;height:100%;
+    <div style="position:absolute;left:25.0%;width:15.0%;height:100%;
+                background:#f7816622;border-radius:4px"></div>
+    <div style="position:absolute;left:25.0%;width:15.0%;height:100%;
+                background:#f7816688"></div>
+    <div style="position:absolute;left:30.0%;width:3px;height:100%;
                 background:#f0f6fc"></div>
   </div>
   <span style="width:56px;font-size:.82em;color:#8b949e">-68 dBm</span>
 </div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A41</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:5.0%;width:40.0%;height:100%;
+                background:#d2992222;border-radius:4px"></div>
+    <div style="position:absolute;left:30.0%;width:10.0%;height:100%;
+                background:#d2992288"></div>
+    <div style="position:absolute;left:25.0%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-69 dBm</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <span style="width:36px;text-align:right;font-size:.85em;color:#e6edf3;
+               font-weight:700">A52</span>
+  <div style="flex:1;position:relative;height:22px;background:#0d1117;
+              border-radius:4px;overflow:hidden">
+    <div style="position:absolute;left:50.0%;width:15.0%;height:100%;
+                background:#a371f722;border-radius:4px"></div>
+    <div style="position:absolute;left:50.0%;width:15.0%;height:100%;
+                background:#a371f788"></div>
+    <div style="position:absolute;left:55.0%;width:3px;height:100%;
+                background:#f0f6fc"></div>
+  </div>
+  <span style="width:56px;font-size:.82em;color:#8b949e">-63 dBm</span>
+</div>
   <div style="display:flex;justify-content:space-between;
               font-size:10px;color:#484f58;margin-top:4px">
-    <span>-74 dBm</span><span>-58 dBm</span>
+    <span>-74 dBm</span><span>-54 dBm</span>
   </div>
 </div>
 
 <h2>Comparação de Métricas</h2>
+<p class="chart-desc">Valores consolidados por antena (mediana dos runs). RSSI P10 = pior 10% das amostras — indica o sinal em condição adversa.</p>
 <div class="grid3">
   <div class="card" style="text-align:center">
     <div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 (dBm)</div>
@@ -273,15 +285,26 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 </div>
 
 <h2>RSSI ao Longo do Tempo</h2>
-<div class="chart-card">
-  <canvas id="chartRssiTime" height="120"></canvas>
+<p class="chart-desc">Evolução do sinal por janela BURN (~15 s). Cada antena em escala de tempo independente — permite comparar estabilidade sem distorção por duração diferente de teste.
+Eixo Y compartilhado entre todos os gráficos para comparação justa.
+<span style="color:#d29922">— -65 dBm: limite mínimo recomendado para campo.</span>
+<span style="color:#f85149">  — -75 dBm: crítico, risco de perda de link.</span></p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px">
+  <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#58a6ff;font-size:.95em">A53</span><span style="font-size:9px;color:#484f58">72 janelas · ~18 min</span></div><canvas id="chartRssiSM_A53" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#3fb950;font-size:.95em">A51</span><span style="font-size:9px;color:#484f58">108 janelas · ~27 min</span></div><canvas id="chartRssiSM_A51" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#f78166;font-size:.95em">A42</span><span style="font-size:9px;color:#484f58">72 janelas · ~18 min</span></div><canvas id="chartRssiSM_A42" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#d29922;font-size:.95em">A41</span><span style="font-size:9px;color:#484f58">604 janelas · ~151 min</span></div><canvas id="chartRssiSM_A41" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#a371f7;font-size:.95em">A52</span><span style="font-size:9px;color:#484f58">72 janelas · ~18 min</span></div><canvas id="chartRssiSM_A52" height="90"></canvas></div>
 </div>
 
-<h2>Throughput ao Longo do Tempo</h2><div class="chart-card"><canvas id="chartTputTime" height="120"></canvas></div>
+<h2>Throughput ao Longo do Tempo</h2><p class="chart-desc">Throughput TCP medido em cada janela BURN de 10 s. Cada antena em escala de tempo independente — permite comparar estabilidade independente da duração do teste.</p><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px"><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#58a6ff;font-size:.95em">A53</span><span style="font-size:9px;color:#484f58">72 janelas</span></div><canvas id="chartTputSM_A53" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#3fb950;font-size:.95em">A51</span><span style="font-size:9px;color:#484f58">108 janelas</span></div><canvas id="chartTputSM_A51" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#f78166;font-size:.95em">A42</span><span style="font-size:9px;color:#484f58">72 janelas</span></div><canvas id="chartTputSM_A42" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#d29922;font-size:.95em">A41</span><span style="font-size:9px;color:#484f58">604 janelas</span></div><canvas id="chartTputSM_A41" height="90"></canvas></div><div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:700;color:#a371f7;font-size:.95em">A52</span><span style="font-size:9px;color:#484f58">72 janelas</span></div><canvas id="chartTputSM_A52" height="90"></canvas></div></div>
 
 <h2>CLOCK — Comparação por Posição/Marcador</h2><div class="grid2"><div class="chart-card" style="margin-bottom:0"><div style="font-size:11px;color:#8b949e;margin-bottom:8px">RSSI P10 por marcador</div><canvas id="chartClockRssi" height="200"></canvas></div><div class="chart-card" style="margin-bottom:0"><div style="font-size:11px;color:#8b949e;margin-bottom:8px">Latência por marcador (ms)</div><canvas id="chartClockLat" height="200"></canvas></div></div>
 
 <h2>WALK — Reconexão (TTR)</h2><div class="card" style="padding:0;overflow:hidden"><table><tr><th>Antena</th><th>TTR mediana</th><th>TTR P90</th><th>Eventos disc.</th><th>Latência mediana</th></tr>
+<tr>
+  <td style="font-weight:700;color:#3fb950">A51</td>
+  <td>—</td>
+  <td>—</td>
+  <td>0</td>
+  <td>3 ms</td>
+</tr>
 <tr>
   <td style="font-weight:700;color:#d29922">A41</td>
   <td>—</td>
@@ -438,16 +461,198 @@ footer{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
   <td style="color:#3fb950;font-weight:700">VALID</td>
   <td style="font-size:11px;color:#8b949e">—</td>
 </tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R01.csv</td>
+  <td>A41</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R02.csv</td>
+  <td>A41</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R03.csv</td>
+  <td>A41</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R04.csv</td>
+  <td>A41</td><td>BURN</td><td>R04</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A41_MESA_DES_R05.csv</td>
+  <td>A41</td><td>BURN</td><td>R05</td>
+  <td>508</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A42_MESA_DES_R01.csv</td>
+  <td>A42</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A42_MESA_DES_R02.csv</td>
+  <td>A42</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A42_MESA_DES_R03.csv</td>
+  <td>A42</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R01.csv</td>
+  <td>A51</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R02.csv</td>
+  <td>A51</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R03.csv</td>
+  <td>A51</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R04.csv</td>
+  <td>A51</td><td>BURN</td><td>R04</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R05.csv</td>
+  <td>A51</td><td>BURN</td><td>R05</td>
+  <td>11</td>
+  <td style="color:#d29922;font-weight:700">INCOMPLETE</td>
+  <td style="font-size:11px;color:#8b949e">END_RUN ausente — run INCOMPLETO</td>
+</tr>
+<tr>
+  <td>BURN_A51_MESA_DES_R06.csv</td>
+  <td>A51</td><td>BURN</td><td>R06</td>
+  <td>13</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A52_MESA_DES_R01.csv</td>
+  <td>A52</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A52_MESA_DES_R02.csv</td>
+  <td>A52</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A52_MESA_DES_R03.csv</td>
+  <td>A52</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A53_MESA_DES_R01.csv</td>
+  <td>A53</td><td>BURN</td><td>R01</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A53_MESA_DES_R02.csv</td>
+  <td>A53</td><td>BURN</td><td>R02</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>BURN_A53_MESA_DES_R03.csv</td>
+  <td>A53</td><td>BURN</td><td>R03</td>
+  <td>12</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>CLOCK_A41_MESA_DES_R01.csv</td>
+  <td>A41</td><td>CLOCK</td><td>R01</td>
+  <td>75</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>CLOCK_A41_MESA_DES_R02.csv</td>
+  <td>A41</td><td>CLOCK</td><td>R02</td>
+  <td>58</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>WALK_A41_MESA_DES_R01.csv</td>
+  <td>A41</td><td>WALK</td><td>R01</td>
+  <td>53</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>WALK_A41_TETO_LIG_R01.csv</td>
+  <td>A41</td><td>WALK</td><td>R01</td>
+  <td>36</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>WALK_A51_MESA_DES_R01.csv</td>
+  <td>A51</td><td>WALK</td><td>R01</td>
+  <td>513</td>
+  <td style="color:#3fb950;font-weight:700">VALID</td>
+  <td style="font-size:11px;color:#8b949e">—</td>
+</tr>
+<tr>
+  <td>WALK_A51_MESA_DES_R02.csv</td>
+  <td>A51</td><td>WALK</td><td>R02</td>
+  <td>239</td>
+  <td style="color:#d29922;font-weight:700">INCOMPLETE</td>
+  <td style="font-size:11px;color:#8b949e">END_RUN ausente — run INCOMPLETO</td>
+</tr>
 </table>
 </div>
 
 <footer>
-  RF Field Validator N2.1 · Terasite Tecnologia · 09/04/2026 19:35
+  RF Field Validator N2.1 · Terasite Tecnologia · 15/04/2026 00:14
 </footer>
 
 <script>
-const D = {"antennas": ["A53", "A51", "A52", "A41", "A42"], "colors": ["#58a6ff", "#3fb950", "#f78166", "#d29922", "#a371f7"], "scores": [100.0, 76.7, 67.8, 57.2, 52.8], "rssi": [-63, -66, -64, -67, -69], "tput_mbps": [3.461936, 2.960584, 1.435232, 1.896448, 2.41008], "plr": [0.0, 0.0, 0.0, 0.0, 0.0], "lat_ms": [null, null, null, 2.93, null], "has_tput": true, "series": {"A53": {"ts": [484332, 499382, 514429, 529482, 545465, 560518, 575533, 590624, 606598, 621642, 636703, 651757, 48783, 63842, 78890, 93943, 110017, 125073, 140126, 155382, 171361, 186613, 201870, 216929, 986659, 1004685, 1022736, 1040783, 1059736, 1077748, 1095798, 1113842, 1132775, 1150783, 1168817, 1186858], "rssi": [-64, -61, -59, -59, -61, -61, -63, -60, -59, -61, -58, -60, -62, -63, -63, -59, -63, -63, -59, -63, -59, -59, -62, -62, -59, -58, -59, -58, -59, -55, -58, -56, -57, -57, -57, -57], "tput": [3593824, 3628232, 3644616, 3677384, 3652808, 3692128, 1906272, 3684760, 3668376, 3662640, 3617584, 3592192, 3535664, 3541400, 3510272, 3539760, 2950752, 3545496, 3496344, 3392304, 3553688, 3545496, 3448008, 3461936, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A51": {"ts": [1253594, 1271628, 1289667, 1307702, 1326613, 1344642, 1362680, 1380706, 1399653, 1417690, 1435733, 1453739, 280267, 295310, 310353, 325504, 341443, 357068, 372125, 387616, 403563, 418594, 433605, 448620, 482101, 497816, 512936, 528382, 544462, 559653, 574702, 589748, 606242, 621467, 637438, 653591], "rssi": [-59, -59, -60, -59, -56, -56, -56, -55, -56, -59, -63, -58, -62, -63, -61, -62, -61, -66, -63, -62, -63, -63, -69, -70, -68, -67, -67, -64, -65, -66, -64, -64, -67, -68, -61, -64], "tput": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3362816, 3385752, 3481600, 3427528, 3098208, 3483232, 3514368, 3118688, 3594648, 3094936, 3453744, 3253856, 3312024, 3318576, 2980248, 2170056, 2354376, 2960584, 3510272, 3404592, 2172512, 3352160, 3117056, 2803296]}, "A52": {"ts": [234190, 249312, 264351, 279419, 295501, 310517, 327273, 342607, 358544, 373573, 388781, 403837, 861566, 877675, 892898, 908107, 924268, 940108, 955161, 971269, 987415, 1002456, 1018258, 1033601, 1500412, 1518415, 1536450, 1554482, 1573439, 1591478, 1609518, 1627551, 1646455, 1664461, 1682499, 1700535], "rssi": [-67, -67, -67, -65, -69, -65, -64, -61, -63, -60, -61, -62, -61, -63, -61, -64, -63, -64, -63, -66, -64, -61, -62, -65, -54, -57, -53, -59, -55, -59, -55, -54, -55, -53, -54, -55], "tput": [1973448, 1629384, 2304408, 1342664, 2194632, 1435232, 1328736, 1883336, 3028576, 2594400, 2949120, 2522312, 2617344, 2341272, 993688, 1400008, 1529440, 3006464, 2700080, 3002368, 3617584, 3174400, 2202008, 1287776, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A41": {"ts": [39347, 54408, 70000, 85325, 101304, 116557, 132878, 148100, 164076, 179129, 194180, 209233, 240600, 255925, 270980, 286032, 302008, 317365, 332457, 347677, 364973, 380084, 395292, 410381, 85686, 101837, 116888, 132101, 148079, 163129, 178181, 193217, 209309, 224364, 239619, 254677, 71836, 86861, 102108, 117128, 133049, 148225, 163278, 178313, 194271, 209528, 224577, 239636, 2630577, 2631077, 2631576, 2632075, 2632574, 2633073, 2633573, 2634072, 2634573, 2635077, 2635573, 2636072, 2636573, 2637071, 2637574, 2638071, 2638571, 2639071, 2639570, 2640071, 2640623, 2641121, 2641620, 2642120, 2642620, 2643119, 2643619, 2644121, 2644618, 2645118, 2645618, 2646118, 2646622, 2647119, 2647616, 2648116, 2648615, 2649115, 2649622, 2650116, 2650613, 2651113, 2651613, 2652112, 2652611, 2653113, 2653612, 2654109, 2654609, 2655143, 2655646, 2656142, 2656641, 646239, 646737, 647239, 647738, 648234, 648735, 649237, 649735, 650233, 650733, 651238, 651735, 652232, 652732, 653232, 653730, 654229, 654730, 655229, 655729, 656229, 656729, 657229, 657731, 658229, 658728, 659229, 659729, 660230, 660727, 661227, 661728, 662225, 662725, 663228, 663724], "rssi": [-66, -65, -69, -70, -61, -62, -65, -66, -66, -64, -64, -67, -67, -64, -64, -64, -64, -63, -63, -63, -62, -63, -63, -63, -74, -73, -72, -68, -67, -66, -67, -67, -64, -61, -65, -67, -73, -64, -68, -68, -68, -67, -68, -68, -64, -64, -62, -65, -59, -57, -58, -56, -60, -59, -63, -61, -62, -63, -64, -58, -63, -63, -58, -58, -58, -64, -64, -58, -64, -58, -57, -56, -56, -63, -56, -56, -62, -57, -57, -62, -62, -62, -62, -57, -62, -62, -56, -56, -56, -56, -61, -61, -56, -54, -62, -56, -62, -55, -63, -63, -57, -70, -70, -71, -69, -70, -68, -69, -69, -70, -71, -72, -72, -72, -71, -72, -72, -70, -70, -67, -67, -68, -68, -68, -72, -68, -69, -69, -69, -69, -69, -69, -69, -69, -69, -69, -68], "tput": [1585968, 2047176, 1800600, 2917168, 2609968, 3022848, 3498800, 3348064, 2524768, 1896448, 2488728, 1759640, 2706632, 855240, 1015808, 2127456, 2483808, 1492576, 1943960, 2842624, 2146304, 805272, 2828696, 1863680, 1046112, 3528288, 3022848, 2592768, 3156376, 3627416, 3181768, 3724080, 2982704, 3639704, 3034312, 3052336, 2489544, 3162112, 3086744, 3139168, 2973696, 3076096, 3038408, 3690496, 2789376, 2744320, 1611360, 3242392, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A42": {"ts": [1774197, 1792214, 1810255, 1828292, 1847232, 1865277, 1883314, 1901353, 1920255, 1938308, 1956321, 1971356, 1997899, 2012989, 2028031, 2043096, 2060126, 2075450, 2090509, 2105578, 2121634, 2136891, 2151949, 2167001, 2208710, 2223729, 2239584, 2254662, 2271691, 2288122, 2304249, 2320636, 2336585, 2351635, 2366693, 2381741], "rssi": [-65, -68, -68, -66, -68, -66, -68, -64, -69, -67, -70, -67, -71, -68, -68, -68, -68, -68, -68, -66, -68, -68, -68, -69, -64, -64, -69, -65, -66, -66, -71, -66, -66, -66, -63, -66], "tput": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3318576, 1840736, 3380832, 3362816, 3294000, 3303008, 2591128, 3334144, 3279256, 3395584, 3335776, 3353800, 2763160, 3289088, 1841560, 1941504, 1235352, 2464968, 2410080, 2910616, 1053488, 2137288, 2877848, 3362816, 3366088]}}};
-const R = {"labels": ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"], "datasets": [{"label": "A53", "data": [100.0, 100.0, 100.0, 0.0, 100.0], "color": "#58a6ff"}, {"label": "A51", "data": [50.0, 75.3, 100.0, 8.4, 45.8], "color": "#3fb950"}, {"label": "A52", "data": [83.3, 0.0, 100.0, 0.2, 79.6], "color": "#f78166"}, {"label": "A41", "data": [33.3, 22.8, 100.0, 100.0, 69.7], "color": "#d29922"}, {"label": "A42", "data": [0.0, 48.1, 100.0, 10.9, 0.0], "color": "#a371f7"}]};
+const D = {"antennas": ["A53", "A51", "A42", "A41", "A52"], "colors": ["#58a6ff", "#3fb950", "#f78166", "#d29922", "#a371f7"], "scores": [93.3, 89.0, 60.3, 48.6, 47.2], "rssi": [-63, -59, -69, -68, -64], "tput_mbps": [3.461936, 2.960584, 2.41008, 1.8006, 1.435232], "plr": [0.0, 0.0, 0.0, 0.0, 0.0], "lat_ms": [null, 2.91, null, 2.93, null], "has_tput": true, "series": {"A53": {"ts": [484332, 499382, 514429, 529482, 545465, 560518, 575533, 590624, 606598, 621642, 636703, 651757, 48783, 63842, 78890, 93943, 110017, 125073, 140126, 155382, 171361, 186613, 201870, 216929, 986659, 1004685, 1022736, 1040783, 1059736, 1077748, 1095798, 1113842, 1132775, 1150783, 1168817, 1186858, 484332, 499382, 514429, 529482, 545465, 560518, 575533, 590624, 606598, 621642, 636703, 651757, 48783, 63842, 78890, 93943, 110017, 125073, 140126, 155382, 171361, 186613, 201870, 216929, 986659, 1004685, 1022736, 1040783, 1059736, 1077748, 1095798, 1113842, 1132775, 1150783, 1168817, 1186858], "rssi": [-64, -61, -59, -59, -61, -61, -63, -60, -59, -61, -58, -60, -62, -63, -63, -59, -63, -63, -59, -63, -59, -59, -62, -62, -59, -58, -59, -58, -59, -55, -58, -56, -57, -57, -57, -57, -64, -61, -59, -59, -61, -61, -63, -60, -59, -61, -58, -60, -62, -63, -63, -59, -63, -63, -59, -63, -59, -59, -62, -62, -59, -58, -59, -58, -59, -55, -58, -56, -57, -57, -57, -57], "tput": [3593824, 3628232, 3644616, 3677384, 3652808, 3692128, 1906272, 3684760, 3668376, 3662640, 3617584, 3592192, 3535664, 3541400, 3510272, 3539760, 2950752, 3545496, 3496344, 3392304, 3553688, 3545496, 3448008, 3461936, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3593824, 3628232, 3644616, 3677384, 3652808, 3692128, 1906272, 3684760, 3668376, 3662640, 3617584, 3592192, 3535664, 3541400, 3510272, 3539760, 2950752, 3545496, 3496344, 3392304, 3553688, 3545496, 3448008, 3461936, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A51": {"ts": [1253594, 1271628, 1289667, 1307702, 1326613, 1344642, 1362680, 1380706, 1399653, 1417690, 1435733, 1453739, 280267, 295310, 310353, 325504, 341443, 357068, 372125, 387616, 403563, 418594, 433605, 448620, 482101, 497816, 512936, 528382, 544462, 559653, 574702, 589748, 606242, 621467, 637438, 653591, 1253594, 1271628, 1289667, 1307702, 1326613, 1344642, 1362680, 1380706, 1399653, 1417690, 1435733, 1453739, 280267, 295310, 310353, 325504, 341443, 357068, 372125, 387616, 403563, 418594, 433605, 448620, 482101, 497816, 512936, 528382, 544462, 559653, 574702, 589748, 606242, 621467, 637438, 653591, 69669, 88103, 106126, 124148, 143501, 161626, 179986, 198082, 217889, 236590, 254594, 273608, 61906, 80583, 99202, 117237, 136245, 154511, 173126, 191157, 210100, 228346, 246402, 461968, 477967, 493475, 509725, 517393, 533654, 549011, 564124, 579229, 595158, 611516, 626627, 641908], "rssi": [-59, -59, -60, -59, -56, -56, -56, -55, -56, -59, -63, -58, -62, -63, -61, -62, -61, -66, -63, -62, -63, -63, -69, -70, -68, -67, -67, -64, -65, -66, -64, -64, -67, -68, -61, -64, -59, -59, -60, -59, -56, -56, -56, -55, -56, -59, -63, -58, -62, -63, -61, -62, -61, -66, -63, -62, -63, -63, -69, -70, -68, -67, -67, -64, -65, -66, -64, -64, -67, -68, -61, -64, -55, -53, -51, -53, -53, -52, -54, -52, -53, -52, -53, -53, -52, -53, -53, -50, -51, -50, -54, -53, -56, -52, -52, -56, -60, -58, -57, -57, -57, -56, -57, -57, -57, -61, -60, -58], "tput": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3362816, 3385752, 3481600, 3427528, 3098208, 3483232, 3514368, 3118688, 3594648, 3094936, 3453744, 3253856, 3312024, 3318576, 2980248, 2170056, 2354376, 2960584, 3510272, 3404592, 2172512, 3352160, 3117056, 2803296, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3362816, 3385752, 3481600, 3427528, 3098208, 3483232, 3514368, 3118688, 3594648, 3094936, 3453744, 3253856, 3312024, 3318576, 2980248, 2170056, 2354376, 2960584, 3510272, 3404592, 2172512, 3352160, 3117056, 2803296, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5740953, 5603328, 4351590, 1209139, 865075, 4010803, 3860070, 3771596, 4731699, 3656908, 4544921, 2562457, 4643225]}, "A42": {"ts": [1774197, 1792214, 1810255, 1828292, 1847232, 1865277, 1883314, 1901353, 1920255, 1938308, 1956321, 1971356, 1997899, 2012989, 2028031, 2043096, 2060126, 2075450, 2090509, 2105578, 2121634, 2136891, 2151949, 2167001, 2208710, 2223729, 2239584, 2254662, 2271691, 2288122, 2304249, 2320636, 2336585, 2351635, 2366693, 2381741, 1774197, 1792214, 1810255, 1828292, 1847232, 1865277, 1883314, 1901353, 1920255, 1938308, 1956321, 1971356, 1997899, 2012989, 2028031, 2043096, 2060126, 2075450, 2090509, 2105578, 2121634, 2136891, 2151949, 2167001, 2208710, 2223729, 2239584, 2254662, 2271691, 2288122, 2304249, 2320636, 2336585, 2351635, 2366693, 2381741], "rssi": [-65, -68, -68, -66, -68, -66, -68, -64, -69, -67, -70, -67, -71, -68, -68, -68, -68, -68, -68, -66, -68, -68, -68, -69, -64, -64, -69, -65, -66, -66, -71, -66, -66, -66, -63, -66, -65, -68, -68, -66, -68, -66, -68, -64, -69, -67, -70, -67, -71, -68, -68, -68, -68, -68, -68, -66, -68, -68, -68, -69, -64, -64, -69, -65, -66, -66, -71, -66, -66, -66, -63, -66], "tput": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3318576, 1840736, 3380832, 3362816, 3294000, 3303008, 2591128, 3334144, 3279256, 3395584, 3335776, 3353800, 2763160, 3289088, 1841560, 1941504, 1235352, 2464968, 2410080, 2910616, 1053488, 2137288, 2877848, 3362816, 3366088, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3318576, 1840736, 3380832, 3362816, 3294000, 3303008, 2591128, 3334144, 3279256, 3395584, 3335776, 3353800, 2763160, 3289088, 1841560, 1941504, 1235352, 2464968, 2410080, 2910616, 1053488, 2137288, 2877848, 3362816, 3366088]}, "A41": {"ts": [39347, 54408, 70000, 85325, 101304, 116557, 132878, 148100, 164076, 179129, 194180, 209233, 240600, 255925, 270980, 286032, 302008, 317365, 332457, 347677, 364973, 380084, 395292, 410381, 85686, 101837, 116888, 132101, 148079, 163129, 178181, 193217, 209309, 224364, 239619, 254677, 71836, 86861, 102108, 117128, 133049, 148225, 163278, 178313, 194271, 209528, 224577, 239636, 39347, 54408, 70000, 85325, 101304, 116557, 132878, 148100, 164076, 179129, 194180, 209233, 240600, 255925, 270980, 286032, 302008, 317365, 332457, 347677, 364973, 380084, 395292, 410381, 85686, 101837, 116888, 132101, 148079, 163129, 178181, 193217, 209309, 224364, 239619, 254677, 71836, 86861, 102108, 117128, 133049, 148225, 163278, 178313, 194271, 209528, 224577, 239636, 12028531, 12046585, 12064591, 12082617, 12100640, 12118695, 12137440, 12155489, 12173542, 12191579, 12209599, 12227604, 12245659, 12263667, 12281721, 12299771, 12317788, 12335819, 12353853, 12371899, 12389926, 12407933, 12425947, 12443957, 12461969, 12479972, 12498021, 12516074, 12534116, 12552164, 12570218, 12588242, 12606245, 12624293, 12642302, 12660959, 12679001, 12697051, 12715097, 12733129, 12751179, 12769194, 12787200, 12805219, 12823222, 12841297, 12859323, 12877328, 12895367, 12913374, 12931422, 12949474, 12967522, 12985555, 13003579, 13021625, 13039635, 13057641, 13075691, 13093711, 13111748, 13129800, 13147815, 13165829, 13183833, 13201847, 13219892, 13237906, 13255920, 13273932, 13291973, 13310008, 13328040, 13346044, 13364076, 13382091, 13400104, 13418132, 13436154, 13454173, 13472179, 13490230, 13508273, 13526328, 13544358, 13562414, 13580465, 13598480, 13616490, 13634543, 13652594, 13670598, 13688615, 13706636, 13724649, 13742699, 13760702, 13778753, 13796756, 13814784, 13832819, 13850834, 13868884, 13886908, 13904960, 13923006, 13941047, 13959061, 13977078, 13995131, 14013136, 14031143, 14049175, 14067221, 14085244, 14103272, 14121275, 14139283, 14157311, 14175337, 14193354, 14211384, 14229434, 14247459, 14265469, 14283472, 14301526, 14319538, 14337579, 14355583, 14373611, 14391633, 14409668, 14427682, 14445695, 14463700, 14481733, 14499781, 14517818, 14535873, 14553882, 14571910, 14589959, 14608005, 14626047, 14644088, 14662105, 14680151, 14698205, 14716252, 14734303, 14752317, 14770357, 14788371, 14806375, 14824384, 14842388, 14860417, 14878430, 14896479, 14914491, 14932532, 14950582, 14968586, 14986608, 15004611, 15022620, 15040643, 15058689, 15076703, 15094722, 15112737, 15130754, 15148777, 15166784, 15184838, 15202848, 15220894, 15238943, 15256983, 15274997, 15293044, 15311094, 15329115, 15347161, 15365212, 15383242, 15401281, 15419284, 15437328, 15455331, 15473369, 15491383, 15509398, 15527441, 15545449, 15563455, 15581462, 15599515, 15617525, 15635544, 15653550, 15671592, 15689637, 15707684, 15725703, 15743712, 15761718, 15779731, 15797741, 15815764, 15833796, 15851841, 15869856, 15887905, 15905953, 15923958, 15941965, 15960012, 15978067, 15996119, 16014175, 16032225, 16050274, 16068327, 16086374, 16104389, 16122434, 16140437, 16158489, 16176498, 16194508, 16212553, 16230570, 16248584, 16266607, 16284662, 16302716, 16320719, 16338734, 16356777, 16374800, 16392816, 16410825, 16428845, 16446877, 16464909, 16482938, 16500987, 16519029, 16537062, 16555065, 16573118, 16591162, 16609169, 16627185, 16645190, 16663196, 16681246, 16699263, 16717305, 16735327, 16753381, 16771405, 16789415, 16807467, 16825521, 16843565, 16861605, 16879626, 16897633, 16915668, 16933691, 16951734, 16969776, 16987800, 17005831, 17023857, 17041878, 17059913, 17077920, 17095923, 17113927, 17131954, 17149966, 17167996, 17186022, 17204041, 17222051, 17240070, 17258084, 17276099, 17294152, 17312175, 17330198, 17348207, 17366216, 17384220, 17402275, 17420322, 17438370, 17456389, 17474399, 17492411, 17510439, 17528468, 17546479, 17564520, 17582545, 17600569, 17618607, 17636632, 17654636, 17672656, 17690680, 17708732, 17726764, 17744768, 17762787, 17780801, 17798843, 17816849, 17834875, 17852892, 17870912, 17888917, 17906946, 17925000, 17943005, 17961056, 17979100, 17997121, 18015137, 18033178, 18051209, 18069229, 18087251, 18105266, 18123293, 18141321, 18159346, 18177368, 18195385, 18213439, 18231479, 18249483, 18267507, 18285566, 18303605, 18321652, 18339673, 18357724, 18375749, 18393776, 18411788, 18429847, 18447891, 18465896, 18483947, 18501960, 18519997, 18538004, 18556052, 18574101, 18592114, 18610164, 18628219, 18646228, 18664232, 18682280, 18700302, 18718315, 18736320, 18754354, 18772370, 18790378, 18808385, 18826395, 18844401, 18862406, 18880414, 18898432, 18916483, 18934512, 18952564, 18970580, 18988598, 19006614, 19024633, 19042678, 19060698, 19078752, 19096808, 19114812, 19132862, 19150909, 19168926, 19186960, 19205013, 19223026, 19241076, 19259124, 19277165, 19295220, 19313227, 19331241, 19349293, 19367303, 19385354, 19403409, 19421433, 19439437, 19457493, 19475506, 19493524, 19511539, 19529544, 19547552, 19565558, 19583610, 19601617, 19619626, 19637651, 19655658, 19673676, 19691706, 19709740, 19727751, 19745798, 19763849, 19781902, 19799945, 19817994, 19836013, 19854046, 19872060, 19890107, 19908112, 19926154, 19944168, 19962218, 19980273, 19998323, 20016364, 20034376, 20052431, 20070447, 20088494, 20106510, 20124529, 20142573, 20160579, 20178591, 20196594, 20214603, 20232620, 20250645, 20268662, 20286685, 20304731, 20322764, 20340783, 20358790, 20376844, 20394878, 20412881, 20430903, 20448917, 20466929, 20484966, 20502969, 20521014, 20539067, 20557122, 20575145, 20593171, 20611220, 20629226, 20647242, 20665255, 20683288, 20701310, 20719362, 20737375, 20755396, 20773400, 20791417, 20809471, 20827488, 20845542, 20863568, 20881571, 20899581, 20917636, 20935645, 20953668, 20971679, 20989706, 21007724, 21025746, 21043790, 21061840, 21079884, 21097900, 21115903, 21133915, 21151964, 21169974], "rssi": [-66, -65, -69, -70, -61, -62, -65, -66, -66, -64, -64, -67, -67, -64, -64, -64, -64, -63, -63, -63, -62, -63, -63, -63, -74, -73, -72, -68, -67, -66, -67, -67, -64, -61, -65, -67, -73, -64, -68, -68, -68, -67, -68, -68, -64, -64, -62, -65, -66, -65, -69, -70, -61, -62, -65, -66, -66, -64, -64, -67, -67, -64, -64, -64, -64, -63, -63, -63, -62, -63, -63, -63, -74, -73, -72, -68, -67, -66, -67, -67, -64, -61, -65, -67, -73, -64, -68, -68, -68, -67, -68, -68, -64, -64, -62, -65, -75, -76, -72, -75, -72, -73, -71, -69, -68, -69, -65, -66, -67, -68, -70, -68, -62, -67, -67, -67, -68, -69, -66, -68, -70, -68, -69, -68, -69, -66, -69, -66, -72, -73, -77, -73, -74, -78, -74, -73, -73, -81, -72, -77, -79, -78, -79, -79, -81, -76, -77, -73, -72, -76, -78, -78, -75, -76, -78, -82, -73, -73, -73, -74, -75, -78, -76, -76, -75, -77, -79, -82, -71, -74, -76, -72, -73, -77, -79, -78, -78, -74, -74, -82, -79, -77, -78, -71, -74, -72, -73, -72, -72, -72, -72, -81, -74, -74, -75, -72, -71, -77, -75, -75, -72, -73, -71, -72, -74, -81, -73, -72, -73, -73, -73, -72, -72, -79, -75, -77, -77, -74, -72, -75, -74, -75, -77, -83, -77, -79, -80, -80, -77, -81, -77, -78, -78, -79, -79, -78, -76, -78, -79, -79, -79, -77, -80, -79, -79, -76, -79, -79, -75, -79, -80, -80, -80, -79, -79, -76, -76, -79, -79, -76, -79, -79, -76, -77, -77, -80, -80, -80, -77, -79, -76, -76, -80, -79, -80, -79, -76, -76, -80, -79, -79, -79, -80, -80, -79, -80, -76, -76, -80, -80, -76, -77, -79, -77, -79, -76, -76, -76, -77, -80, -79, -80, -80, -80, -77, -80, -80, -76, -79, -79, -76, -76, -80, -77, -79, -76, -77, -80, -79, -79, -76, -80, -77, -80, -80, -76, -80, -80, -79, -79, -80, -79, -80, -80, -80, -77, -79, -80, -80, -80, -79, -80, -76, -80, -80, -80, -76, -80, -77, -79, -80, -80, -78, -79, -78, -77, -72, -75, -78, -76, -73, -77, -72, -76, -73, -77, -77, -74, -75, -76, -72, -72, -72, -78, -79, -79, -79, -77, -79, -80, -79, -79, -77, -80, -80, -81, -77, -76, -80, -76, -80, -79, -77, -79, -76, -77, -80, -76, -79, -80, -77, -76, -76, -79, -76, -79, -76, -77, -79, -80, -76, -76, -76, -80, -79, -82, -77, -79, -79, -80, -80, -79, -77, -77, -80, -79, -76, -79, -77, -80, -77, -80, -77, -79, -77, -80, -80, -80, -80, -79, -76, -76, -79, -76, -79, -79, -79, -80, -76, -76, -79, -79, -80, -76, -79, -79, -79, -79, -79, -79, -79, -80, -80, -80, -80, -80, -77, -80, -80, -80, -76, -77, -79, -79, -79, -79, -79, -79, -79, -76, -80, -80, -80, -80, -80, -80, -77, -79, -79, -76, -79, -79, -78, -79, -76, -79, -76, -79, -76, -79, -79, -79, -79, -76, -79, -79, -79, -79, -79, -76, -76, -76, -79, -79, -79, -79, -79, -79, -76, -76, -76, -76, -76, -79, -80, -80, -80, -80, -79, -79, -76, -79, -79, -79, -79, -79, -79, -79, -79, -79, -76, -76, -79, -79, -76, -76, -79, -79, -79, -79, -80, -80, -80, -76, -76, -79, -80, -80, -79, -76, -76, -80, -80, -79, -76, -80, -80, -76, -76, -80, -77, -79, -77, -80, -80, -80, -79, -80, -80, -80, -80, -79, -77, -80, -80, -80, -79, -79, -76, -76, -79, -79, -76, -79, -79, -79, -80, -77, -71, -73, -74, -75, -74, -71], "tput": [1585968, 2047176, 1800600, 2917168, 2609968, 3022848, 3498800, 3348064, 2524768, 1896448, 2488728, 1759640, 2706632, 855240, 1015808, 2127456, 2483808, 1492576, 1943960, 2842624, 2146304, 805272, 2828696, 1863680, 1046112, 3528288, 3022848, 2592768, 3156376, 3627416, 3181768, 3724080, 2982704, 3639704, 3034312, 3052336, 2489544, 3162112, 3086744, 3139168, 2973696, 3076096, 3038408, 3690496, 2789376, 2744320, 1611360, 3242392, 1585968, 2047176, 1800600, 2917168, 2609968, 3022848, 3498800, 3348064, 2524768, 1896448, 2488728, 1759640, 2706632, 855240, 1015808, 2127456, 2483808, 1492576, 1943960, 2842624, 2146304, 805272, 2828696, 1863680, 1046112, 3528288, 3022848, 2592768, 3156376, 3627416, 3181768, 3724080, 2982704, 3639704, 3034312, 3052336, 2489544, 3162112, 3086744, 3139168, 2973696, 3076096, 3038408, 3690496, 2789376, 2744320, 1611360, 3242392, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "A52": {"ts": [234190, 249312, 264351, 279419, 295501, 310517, 327273, 342607, 358544, 373573, 388781, 403837, 861566, 877675, 892898, 908107, 924268, 940108, 955161, 971269, 987415, 1002456, 1018258, 1033601, 1500412, 1518415, 1536450, 1554482, 1573439, 1591478, 1609518, 1627551, 1646455, 1664461, 1682499, 1700535, 234190, 249312, 264351, 279419, 295501, 310517, 327273, 342607, 358544, 373573, 388781, 403837, 861566, 877675, 892898, 908107, 924268, 940108, 955161, 971269, 987415, 1002456, 1018258, 1033601, 1500412, 1518415, 1536450, 1554482, 1573439, 1591478, 1609518, 1627551, 1646455, 1664461, 1682499, 1700535], "rssi": [-67, -67, -67, -65, -69, -65, -64, -61, -63, -60, -61, -62, -61, -63, -61, -64, -63, -64, -63, -66, -64, -61, -62, -65, -54, -57, -53, -59, -55, -59, -55, -54, -55, -53, -54, -55, -67, -67, -67, -65, -69, -65, -64, -61, -63, -60, -61, -62, -61, -63, -61, -64, -63, -64, -63, -66, -64, -61, -62, -65, -54, -57, -53, -59, -55, -59, -55, -54, -55, -53, -54, -55], "tput": [1973448, 1629384, 2304408, 1342664, 2194632, 1435232, 1328736, 1883336, 3028576, 2594400, 2949120, 2522312, 2617344, 2341272, 993688, 1400008, 1529440, 3006464, 2700080, 3002368, 3617584, 3174400, 2202008, 1287776, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1973448, 1629384, 2304408, 1342664, 2194632, 1435232, 1328736, 1883336, 3028576, 2594400, 2949120, 2522312, 2617344, 2341272, 993688, 1400008, 1529440, 3006464, 2700080, 3002368, 3617584, 3174400, 2202008, 1287776, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}}, "rssi_y_min": -88, "rssi_y_max": -45};
+const R = {"labels": ["RSSI", "Throughput", "Conectividade", "Estabilidade", "Consistência"], "datasets": [{"label": "A53", "data": [60.0, 100.0, 100.0, 85.3, 100.0], "color": "#58a6ff"}, {"label": "A51", "data": [100.0, 75.3, 100.0, 38.0, 0.0], "color": "#3fb950"}, {"label": "A42", "data": [0.0, 48.1, 100.0, 100.0, 17.7], "color": "#f78166"}, {"label": "A41", "data": [10.0, 18.0, 100.0, 0.0, 29.4], "color": "#d29922"}, {"label": "A52", "data": [50.0, 0.0, 100.0, 85.5, 83.2], "color": "#a371f7"}]};
 const CLOCK = {"markers": ["CASE", "LIVRE", "SEM_MARK"], "datasets": [{"ant": "A41", "color": "#d29922", "rssi": [-60, -63, -67], "lat": [2.94, 2.95, 2.94], "plr": [0.0, 0.0, 0.0]}]};
 
 const FONT = {color:'#8b949e',size:11};
@@ -541,66 +746,76 @@ barChart('chartPlr', D.antennas, [{
   borderRadius: 4,
 }], { min: 0 });
 
-// Time series — RSSI
+// Small multiples — RSSI por antena (eixo Y compartilhado)
 (function() {
-  const datasets = [];
-  Object.entries(D.series).forEach(([ant, s], i) => {
-    if (!s.rssi || !s.rssi.length) return;
-    datasets.push({
-      label: ant,
-      data: s.rssi.map((v, j) => ({x: j, y: v})),
-      borderColor: D.colors[i] || '#58a6ff',
-      backgroundColor: 'transparent',
-      pointRadius: 3,
-      tension: 0.3,
-    });
-  });
-  if (!datasets.length) return;
-  new Chart(document.getElementById('chartRssiTime'), {
-    type: 'line',
-    data: { datasets },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color:'#c9d1d9',font:{size:11} } } },
-      scales: {
-        x: { type:'linear', title:{display:true,text:'Amostra',color:'#8b949e'},
-              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
-        y: { title:{display:true,text:'RSSI (dBm)',color:'#8b949e'},
-              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+  const yMin = D.rssi_y_min, yMax = D.rssi_y_max;
+  D.antennas.forEach(function(ant, i) {
+    const s = D.series[ant];
+    if (!s || !s.rssi || !s.rssi.length) return;
+    const cvs = document.getElementById('chartRssiSM_' + ant);
+    if (!cvs) return;
+    const color = D.colors[i] || '#58a6ff';
+    const n = s.rssi.length;
+    const maxX = n - 1;
+    const ptR = n > 40 ? 0 : 2;
+    new Chart(cvs, {
+      type: 'line',
+      data: { datasets: [
+        { label: ant,
+           data: s.rssi.map(function(v,j){return {x:j,y:v}}),
+           borderColor: color, backgroundColor: color+'18',
+           pointRadius: ptR, tension: 0.3, fill: true, borderWidth: 1.5 },
+        { label:'−65', data:[{x:0,y:-65},{x:maxX,y:-65}],
+           borderColor:'#d2992277', borderDash:[4,4], borderWidth:1,
+           pointRadius:0, fill:false },
+        { label:'−75', data:[{x:0,y:-75},{x:maxX,y:-75}],
+           borderColor:'#f8514966', borderDash:[4,4], borderWidth:1,
+           pointRadius:0, fill:false },
+      ]},
+      options: {
+        responsive: true,
+        plugins: { legend: {display:false} },
+        scales: {
+          x: { type:'linear', ticks:{color:'#484f58',font:{size:8},maxTicksLimit:6},
+                grid:{color:'rgba(48,54,61,0.5)'} },
+          y: { min:yMin, max:yMax,
+                ticks:{color:'#484f58',font:{size:8},maxTicksLimit:5},
+                grid:{color:'rgba(48,54,61,0.5)'} },
+        }
       }
-    }
+    });
   });
 })();
 
-// Time series — Throughput (somente se há dados)
+// Small multiples — Throughput por antena
 if (D.has_tput) (function() {
-  const datasets = [];
-  Object.entries(D.series).forEach(([ant, s], i) => {
-    if (!s.tput || !s.tput.length) return;
-    datasets.push({
-      label: ant,
-      data: s.tput.map((v, j) => ({x: j, y: v/1e6})),
-      borderColor: D.colors[i] || '#58a6ff',
-      backgroundColor: 'transparent',
-      pointRadius: 3,
-      tension: 0.3,
-    });
-  });
-  if (!datasets.length) return;
-  new Chart(document.getElementById('chartTputTime'), {
-    type: 'line',
-    data: { datasets },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color:'#c9d1d9',font:{size:11} } } },
-      scales: {
-        x: { type:'linear', title:{display:true,text:'Amostra',color:'#8b949e'},
-              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
-        y: { title:{display:true,text:'Throughput (Mbps)',color:'#8b949e'},
-              min: 0,
-              ticks:{color:'#8b949e',font:{size:10}}, grid:{color:GRID} },
+  D.antennas.forEach(function(ant, i) {
+    const s = D.series[ant];
+    if (!s || !s.tput || !s.tput.length) return;
+    const cvs = document.getElementById('chartTputSM_' + ant);
+    if (!cvs) return;
+    const color = D.colors[i] || '#58a6ff';
+    const n = s.tput.length;
+    const ptR = n > 40 ? 0 : 2;
+    new Chart(cvs, {
+      type: 'line',
+      data: { datasets: [{
+        label: ant,
+        data: s.tput.map(function(v,j){return {x:j,y:v/1e6}}),
+        borderColor: color, backgroundColor: color+'18',
+        pointRadius: ptR, tension: 0.3, fill: true, borderWidth: 1.5,
+      }]},
+      options: {
+        responsive: true,
+        plugins: { legend: {display:false} },
+        scales: {
+          x: { type:'linear', ticks:{color:'#484f58',font:{size:8},maxTicksLimit:6},
+                grid:{color:'rgba(48,54,61,0.5)'} },
+          y: { min:0, ticks:{color:'#484f58',font:{size:8},maxTicksLimit:5},
+                grid:{color:'rgba(48,54,61,0.5)'} },
+        }
       }
-    }
+    });
   });
 })();
 
