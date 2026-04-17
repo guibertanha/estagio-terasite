@@ -1,0 +1,387 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage[top=1.3cm, bottom=1.3cm, left=1.6cm, right=1.6cm]{geometry}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{parskip}
+
+% ── Paleta Terasite ──────────────────────────────────────────
+\definecolor{tsazul}{HTML}{0B3D91}
+\definecolor{tsazulmed}{HTML}{1A6BBF}
+\definecolor{tsazulclaro}{HTML}{E3EFFB}
+\definecolor{tsteal}{HTML}{009BAA}
+\definecolor{tstealclaro}{HTML}{DFF5F7}
+\definecolor{tsverde}{HTML}{27A35C}
+\definecolor{tsverdeclaro}{HTML}{E0F5EB}
+\definecolor{tsambar}{HTML}{B56F00}
+\definecolor{tsambarclaro}{HTML}{FBF0DC}
+\definecolor{tsroxo}{HTML}{6B3FA0}
+\definecolor{tsroxoclaro}{HTML}{EFE7F7}
+\definecolor{tscinza}{HTML}{4A5560}
+\definecolor{tscinzaclaro}{HTML}{F2F4F7}
+
+% ── Caixas ───────────────────────────────────────────────────
+\tcbset{
+  cxa/.style={enhanced,colback=tsazulclaro,colframe=tsazul,
+    colbacktitle=tsazul,coltitle=white,
+    arc=4pt,boxrule=.9pt,left=7pt,right=7pt,top=4pt,bottom=4pt,
+    fonttitle=\bfseries\small},
+  cxt/.style={enhanced,colback=tstealclaro,colframe=tsteal,
+    colbacktitle=tsteal,coltitle=white,
+    arc=4pt,boxrule=.9pt,left=7pt,right=7pt,top=4pt,bottom=4pt,
+    fonttitle=\bfseries\small},
+  cxv/.style={enhanced,colback=tsverdeclaro,colframe=tsverde,
+    colbacktitle=tsverde,coltitle=white,
+    arc=4pt,boxrule=.9pt,left=7pt,right=7pt,top=4pt,bottom=4pt,
+    fonttitle=\bfseries\small},
+  cxam/.style={enhanced,colback=tsambarclaro,colframe=tsambar,
+    colbacktitle=tsambar,coltitle=white,
+    arc=4pt,boxrule=.9pt,left=7pt,right=7pt,top=4pt,bottom=4pt,
+    fonttitle=\bfseries\small},
+  cxr/.style={enhanced,colback=tsroxoclaro,colframe=tsroxo,
+    colbacktitle=tsroxo,coltitle=white,
+    arc=4pt,boxrule=.9pt,left=7pt,right=7pt,top=4pt,bottom=4pt,
+    fonttitle=\bfseries\small},
+}
+
+% ── Estilos TikZ ─────────────────────────────────────────────
+\tikzset{
+  bloco/.style={rectangle,rounded corners=3pt,
+    minimum width=4.6cm,minimum height=0.65cm,
+    text centered,draw,thick,font=\small\bfseries,inner sep=2pt},
+  ba/.style={bloco,fill=tsazulclaro,draw=tsazul,text=tsazul},
+  bt/.style={bloco,fill=tstealclaro,draw=tsteal,text=tsteal},
+  bv/.style={bloco,fill=tsverdeclaro,draw=tsverde,text=tsverde},
+  bam/.style={bloco,fill=tsambarclaro,draw=tsambar,text=tsambar},
+  br/.style={bloco,fill=tsroxoclaro,draw=tsroxo,text=tsroxo},
+  bc/.style={bloco,fill=tscinzaclaro,draw=tscinza,text=tscinza,
+             font=\footnotesize\itshape},
+  s/.style={-Stealth,thick,color=tscinza},
+  sa/.style={-Stealth,thick,color=tsazul},
+}
+
+\begin{document}
+\pagestyle{empty}
+\setlength{\parskip}{0pt}
+
+%% ════════════════════════════════════════════════════════════
+%%  PÁGINA 1
+%% ════════════════════════════════════════════════════════════
+
+% ── Cabeçalho ────────────────────────────────────────────────
+\begin{tcolorbox}[
+  enhanced, arc=5pt, boxrule=0pt,
+  left=12pt, right=12pt, top=8pt, bottom=8pt,
+  interior style={left color=tsazul, right color=tsteal},
+  colframe=tsazul,
+]
+  \color{white}
+  {\large\bfseries Protocolo de Testes de Campo --- Antenas Wi-Fi}\\[2pt]
+  {\small Frotall FRITG01LTE \quad|\quad Terasite Tecnologia \quad|\quad Abril 2026}
+\end{tcolorbox}
+
+\vspace{4pt}
+
+% ── Contexto ─────────────────────────────────────────────────
+\begin{tcolorbox}[cxa, title={Contexto}]
+\small
+Estamos selecionando a melhor antena Wi-Fi para o gateway Frotall, instalado em
+máquinas de construção. O operador conecta o celular para sincronizar dados e
+configurar a máquina (\textbf{3 a 10 metros} de distância típica).
+Testaremos \textbf{6 antenas} (5 externas + 1 interna original) cruzadas com
+\textbf{2 estados da máquina} e \textbf{múltiplos pontos de instalação}.
+\end{tcolorbox}
+
+\vspace{4pt}
+\begin{center}
+{\normalsize\bfseries\color{tsazul} Os três testes}
+\end{center}
+\vspace{2pt}
+
+% ── Teste 1: WALK ─────────────────────────────────────────────
+\begin{tcolorbox}[cxv, title={Teste 1 --- WALK (Varredura dinâmica + TTR)}]
+\small
+\textbf{O que faz:} mede RSSI a 2 Hz enquanto o engenheiro caminha ao redor da
+máquina, registrando também \textbf{histerese de desconexão} e \textbf{TTR
+(Time-To-Reconnect)} ao sair e voltar para a área de cobertura.\\[2pt]
+\textbf{Para que serve:} mapear cobertura geral, identificar zonas mortas e
+caracterizar o comportamento de reconexão Wi-Fi (mais difícil de medir do que a
+queda em si --- relevante para a UX de sincronização).\\[2pt]
+\textbf{Como:} caminhar devagar e constante ($<$ 1 m/s), celular na mesma altura,
+trajeto sistemático. \textbf{Duração:} $\sim$3 min por antena.
+\end{tcolorbox}
+
+\vspace{3pt}
+
+% ── Testes 2 e 3 lado a lado ──────────────────────────────────
+\begin{multicols}{2}
+
+\begin{tcolorbox}[cxt, title={Teste 2 --- CLOCK (Estático por posição)}]
+\small
+\textbf{O que faz:} mede RSSI a 1 Hz em pontos fixos marcados pelo operador.
+O parser agrupa as amostras por marcador.\\[2pt]
+\textbf{Para que serve:} comparar sinal a 3 m, 5 m, 10 m, 15 m e em zonas da
+máquina (Cabine, Motor, Frente, Trás).\\[2pt]
+\textbf{Como:} parar 5--10 s em cada posição \emph{antes} de marcar --- as
+amostras seguintes ficam naquele ponto.\\[2pt]
+\textbf{Duração:} $\sim$5 min por antena.
+\end{tcolorbox}
+
+\columnbreak
+
+\begin{tcolorbox}[cxam, title={Teste 3 --- BURN (Throughput + PLR)}]
+\small
+\textbf{O que faz:} mede throughput TCP e perda de pacotes em janelas de 15 s
+(3 s ping + 10 s tráfego TCP + 2 s cooldown).\\[2pt]
+\textbf{Para que serve:} avaliar o desempenho real na sincronização --- o uso
+mais pesado do Wi-Fi no Frotall.\\[2pt]
+\textbf{Como:} \texttt{watch.py} no notebook antes de iniciar, ESP32 parado,
+repetir 3$\times$.\\[2pt]
+\textbf{Duração:} $\sim$5 min por antena.
+\end{tcolorbox}
+
+\end{multicols}
+
+\vspace{3pt}
+
+% ── Matriz de Estresse Ambiental ─────────────────────────────
+\begin{tcolorbox}[cxr, title={Matriz de Estresse Ambiental --- DES $\times$ RUN}]
+\small
+Cada um dos 3 testes é executado em \textbf{dois estados da máquina}, isolando
+a contribuição RF da contribuição mecânica/elétrica:
+\begin{itemize}[leftmargin=*,itemsep=1pt,topsep=2pt]
+  \item[\textbullet] \textbf{DES (Motor desligado):} baseline puro de RF --- só
+        topografia, multipath e ruído ambiente da obra.
+  \item[\textbullet] \textbf{RUN (Motor ligado):} adiciona vibração mecânica
+        sobre o conector e \textbf{EMI do alternador/ignição} (banda 2.4 GHz é
+        notoriamente vulnerável). A diferença DES$\to$RUN é a assinatura de
+        ruído da máquina capturada pelo firmware.
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{3pt}
+
+% ── Antenas ──────────────────────────────────────────────────
+\begin{tcolorbox}[cxa, title={Antenas a testar}]
+\small
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+\textbf{Código} & \textbf{Tipo} & \textbf{Observação} \\
+\midrule
+A5.3 & Externa & Melhor na bancada (score 100) \\
+A5.1 & Externa & Boa na bancada (score 76,7) \\
+A5.2, A4.1, A4.2 & Externas & Medianas na bancada \\
+INT  & Interna (original) & \textbf{Baseline obrigatório} --- referência da campanha \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{1pt}
+{\color{tscinza}\footnotesize O teste da INT mostra matematicamente o ganho de
+trocar a antena de fábrica por uma externa. Sem ela, a comparação é cega.}
+\end{tcolorbox}
+
+\vspace{3pt}
+
+% ── Tempo + Pontos lado a lado ───────────────────────────────
+\begin{multicols}{2}
+
+\begin{tcolorbox}[cxam, title={Tempo estimado}]
+\small
+\begin{tabular}{lc}
+\toprule & \textbf{Aprox.} \\ \midrule
+WALK (DES+RUN) por ant. & $\sim$6 min \\
+CLOCK (DES+RUN) por ant. & $\sim$10 min \\
+BURN (DES+RUN) por ant. & $\sim$10 min \\
+\midrule
+\textbf{Por antena} & $\sim$26 min \\
+\textbf{6 antenas + setup} & \textbf{$\sim$4--5 h} \\
+\bottomrule
+\end{tabular}
+\end{tcolorbox}
+
+\columnbreak
+
+\begin{tcolorbox}[cxt, title={Pontos de instalação}]
+\small
+A posição do ESP32 na máquina afeta o resultado:
+\begin{itemize}[leftmargin=*,itemsep=1pt,topsep=2pt]
+  \item[\textbullet] \textbf{CABINE} --- posição padrão atual
+  \item[\textbullet] \textbf{MOTOR} --- pior caso de EMI
+  \item[\textbullet] \textbf{FRENTE} / \textbf{TRAS} --- variação de obstrução
+\end{itemize}
+\vspace{1pt}
+{\color{tscinza}\footnotesize O parser agrupa por marcador --- basta marcar a
+posição antes de iniciar o run.}
+\end{tcolorbox}
+
+\end{multicols}
+
+\vspace{3pt}
+\begin{center}
+{\footnotesize\color{tscinza}
+Guilherme Bertanha --- Estágio Eng.\ Mecatrônica ---
+Terasite Tecnologia --- Abril 2026}
+\end{center}
+
+%% ════════════════════════════════════════════════════════════
+%%  PÁGINA 2
+%% ════════════════════════════════════════════════════════════
+\newpage
+
+% ── Cabeçalho ────────────────────────────────────────────────
+\begin{tcolorbox}[
+  enhanced, arc=5pt, boxrule=0pt,
+  left=12pt, right=12pt, top=7pt, bottom=7pt,
+  interior style={left color=tsazul, right color=tsteal},
+  colframe=tsazul,
+]
+  \color{white}
+  {\normalsize\bfseries Pipeline de Execução + Instrumentação + Entregáveis}\\[-1pt]
+  {\small Frotall FRITG01LTE \quad|\quad Terasite Tecnologia \quad|\quad Abril 2026}
+\end{tcolorbox}
+
+\vspace{5pt}
+
+% ── Setup de rede ────────────────────────────────────────────
+\begin{tcolorbox}[cxa, title={Setup de rede no campo}]
+\small
+\begin{center}
+\begin{tikzpicture}[node distance=0.9cm]
+  \node[ba, minimum width=2.7cm, minimum height=0.55cm] (cel) {Celular (hotspot)};
+  \node[bt, minimum width=2.7cm, minimum height=0.55cm,
+        below left=0.9cm and 1.1cm of cel] (esp)
+    {ESP32 (antena em teste)};
+  \node[bv, minimum width=2.7cm, minimum height=0.55cm,
+        below right=0.9cm and 1.1cm of cel] (nb)
+    {Notebook (watch.py)};
+  \draw[Stealth-Stealth, thick, color=tsazul] (cel) -- node[above left,font=\tiny,color=tscinza]{Wi-Fi} (esp);
+  \draw[Stealth-Stealth, thick, color=tsazul] (cel) -- node[above right,font=\tiny,color=tscinza]{Wi-Fi} (nb);
+  \draw[Stealth-Stealth, thick, dashed, color=tsazul] (esp) -- node[below,font=\tiny,color=tscinza]{mesma rede} (nb);
+\end{tikzpicture}
+\end{center}
+{\footnotesize\color{tscinza}
+Celular cria o hotspot. ESP32 e notebook entram nessa rede. Sem internet --- tudo
+local. Painel web: \texttt{http://\textless IP-ESP32\textgreater/} no celular.}
+\end{tcolorbox}
+
+\vspace{5pt}
+\begin{center}
+{\normalsize\bfseries\color{tsazul} Pipeline de Execução em Campo}
+\end{center}
+\vspace{3pt}
+
+% ── Pipeline 2 linhas × 3 colunas ────────────────────────────
+\begin{center}
+\begin{tikzpicture}[
+  fase/.style={rectangle, rounded corners=5pt, draw, thick,
+    minimum width=4.4cm, minimum height=1.45cm, text centered,
+    font=\footnotesize, inner sep=4pt, align=center},
+  setaP/.style={-Stealth, line width=1.3pt, color=tscinza},
+  font=\footnotesize,
+]
+
+  % Linha 1: F1 → F2 → F3
+  \node[fase, fill=tsazulclaro, draw=tsazul] (f1) at (0,0)
+    {{\large\textbf{\textcolor{tsazul}{F1 \textbullet{} Setup}}}\\[2pt]
+     hotspot do celular\\watch.py no notebook};
+  \node[fase, fill=tsroxoclaro, draw=tsroxo] (f2) at (5.2,0)
+    {{\large\textbf{\textcolor{tsroxo}{F2 \textbullet{} Baseline}}}\\[2pt]
+     Antena INT\\\textit{referência da campanha}};
+  \node[fase, fill=tstealclaro, draw=tsteal] (f3) at (10.4,0)
+    {{\large\textbf{\textcolor{tsteal}{F3 \textbullet{} Estáticos}}}\\[2pt]
+     CLOCK por posição\\3 / 5 / 10 / 15 m};
+
+  % Linha 2: F6 ← F5 ← F4 (ordem invertida pra fazer o U)
+  \node[fase, fill=tsverdeclaro, draw=tsverde] (f4) at (10.4,-2.6)
+    {{\large\textbf{\textcolor{tsverde}{F4 \textbullet{} Dinâmicos}}}\\[2pt]
+     WALK + TTR\\BURN (3$\times$ por ant.)};
+  \node[fase, fill=tsambarclaro, draw=tsambar] (f5) at (5.2,-2.6)
+    {{\large\textbf{\textcolor{tsambar}{F5 \textbullet{} Motor ON}}}\\[2pt]
+     repete F3+F4 com\\vibração + EMI 2.4 GHz};
+  \node[fase, fill=tsazulclaro, draw=tsazul] (f6) at (0,-2.6)
+    {{\large\textbf{\textcolor{tsazul}{F6 \textbullet{} Parser}}}\\[2pt]
+     sync.py + relatório\\HTML com veredicto};
+
+  % Setas linha 1
+  \draw[setaP] (f1) -- (f2);
+  \draw[setaP] (f2) -- (f3);
+  % Conexão F3 → F4 (desce)
+  \draw[setaP] (f3) -- (f4);
+  % Setas linha 2 (direita pra esquerda)
+  \draw[setaP] (f4) -- (f5);
+  \draw[setaP] (f5) -- (f6);
+
+  % Loop "repetir por antena" — contorna por baixo e pela direita
+  \draw[setaP, dashed, color=tsambar, rounded corners=8pt]
+    (f5.south) -- (5.2,-4.1) -| (13.4,0) -- (f3.east);
+
+  \node[below=2pt, font=\scriptsize\bfseries, color=tsambar]
+    at (7.8,-4.1) {repetir F3$\to$F4$\to$F5 para cada antena externa (5$\times$)};
+
+\end{tikzpicture}
+\end{center}
+
+\vspace{2pt}
+{\footnotesize\color{tscinza}
+A INT (\textbf{F2}) estabelece a referência da campanha. Cada antena externa
+passa por \textbf{F3$\to$F4$\to$F5} antes que a próxima entre em teste ---
+minimiza trocas físicas, que são o gargalo operacional. O parser (\textbf{F6})
+roda offline após tudo coletado.}
+
+\vspace{5pt}
+
+% ── Instrumentação auxiliar (SA6) ────────────────────────────
+\begin{tcolorbox}[cxr, title={Instrumentação auxiliar --- Analisador SA6 (35--6200 MHz)}]
+\small
+O analisador de espectro \textbf{Arinst SSA-TG R2 (SA6)} fica em \emph{standby}
+durante a campanha. Acionado para varrer a banda 2.4 GHz \textbf{caso a transição
+DES$\to$RUN apresente anomalias severas} (jitter de RSSI, PLR elevado, queda
+abrupta de throughput). Captura a \textbf{assinatura de EMI} da máquina real,
+distinguindo se a degradação vem de multipath ou de ruído elétrico do motor ---
+informação que o firmware sozinho não consegue separar.
+\end{tcolorbox}
+
+\vspace{5pt}
+
+% ── Veredicto final dual ─────────────────────────────────────
+\begin{tcolorbox}[cxa, title={Entregáveis do relatório final --- Veredicto Dual}]
+\small
+O parser gera um HTML com banner de vencedor, radar 3 eixos, heatmap antena
+$\times$ condição, cobertura por distância, time series de RSSI e ranking. Mas
+a recomendação ao time de produto vai em \textbf{dois resultados separados}:
+
+\vspace{3pt}
+\begin{tabular}{@{}p{0.46\linewidth}@{\hspace{6pt}}p{0.50\linewidth}@{}}
+\textbf{\color{tsteal}1.\ Vencedor de RF (Score Matemático)} &
+\textbf{\color{tsverde}2.\ Recomendação de Engenharia} \\[2pt]
+{\footnotesize Saída direta do parser:
+PLR 35\% + TTR 10\% + RSSI 15\% + Throughput 40\%.
+Comparação fria, reprodutível e auditável.} &
+{\footnotesize Aplica peso subjetivo sobre robustez do chicote, proteção contra
+vibração e viabilidade mecânica observada durante o BURN. Pode divergir do
+vencedor matemático.} \\
+\end{tabular}
+
+\end{tcolorbox}
+
+\vspace{4pt}
+\begin{center}
+{\footnotesize\color{tscinza}
+Guilherme Bertanha --- Estágio Eng.\ Mecatrônica ---
+Terasite Tecnologia --- Abril 2026}
+\end{center}
+
+\end{document}
