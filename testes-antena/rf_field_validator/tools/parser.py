@@ -483,6 +483,135 @@ def compute_scores(antenna_metrics: dict, weights: dict) -> tuple:
         scores[ant] = round(s * 100, 1)
     return scores, eff_weights
 
+def _empty_metrics() -> dict:
+    return {
+        "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
+        "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
+        "tput_median": 0.0, "tput_p10": 0.0,
+        "plr_median": 100.0, "ttr_median_s": _TTR_NODATA, "lat_median": float("nan"),
+    }
+
+def _aggregate_antenna_metrics(valid_runs: list) -> tuple:
+    """Agrega valid_runs por (antena, modo) e produz métricas para scoring.
+    Reutilizável para subsets (ex: por location). Retorna (consolidated,
+    antenna_metrics, raw_samples)."""
+    by_ant_mode = defaultdict(list)
+    for run in valid_runs:
+        meta = run.get("meta", {})
+        if not meta: continue
+        by_ant_mode[(meta["antenna"], meta["mode"])].append(run)
+
+    consolidated = {}
+    antenna_metrics = {}
+    raw_samples = defaultdict(list)
+
+    for (ant, mode), grp in sorted(by_ant_mode.items()):
+        agg_list = []
+        for run in grp:
+            if mode == "BURN":
+                agg_list.append(aggregate_burn(run["rows"]))
+                for r in run["rows"]:
+                    if r.get("type") == "S":
+                        raw_samples[ant].append(r)
+            elif mode == "WALK":
+                agg_list.append(aggregate_walk(run["rows"]))
+            elif mode == "CLOCK":
+                agg_list.append(aggregate_clock(run["rows"]))
+
+        if mode == "BURN":
+            cons = consolidate_burn(agg_list)
+            consolidated[(ant, mode)] = cons
+            rssi_vals = [cons[b]["rssi_p10"]    for b in cons]
+            tput_vals = [cons[b]["tput_median"] for b in cons]
+            plr_vals  = [cons[b]["plr_median"]  for b in cons]
+            if ant not in antenna_metrics: antenna_metrics[ant] = _empty_metrics()
+            d = antenna_metrics[ant]
+            if rssi_vals: d["rssi_p10"]    = max(d["rssi_p10"],    _median(rssi_vals))
+            if tput_vals: d["tput_median"] = max(d["tput_median"], _median(tput_vals))
+            if plr_vals:  d["plr_median"]  = min(d["plr_median"],  _median(plr_vals))
+            for field in ("rssi_p90","rssi_median","rssi_min","rssi_max","tput_p10"):
+                vals = [cons[b][field] for b in cons if field in cons[b]]
+                if vals: d[field] = _median(vals)
+            std_vals = [cons[b]["rssi_std"] for b in cons if "rssi_std" in cons[b]]
+            if std_vals: d["rssi_std"] = _mean(std_vals)
+
+        elif mode == "WALK":
+            cons = consolidate_walk(agg_list)
+            consolidated[(ant, mode)] = cons
+            if ant not in antenna_metrics: antenna_metrics[ant] = _empty_metrics()
+            d = antenna_metrics[ant]
+            if not math.isnan(cons.get("rssi_p10", float("nan"))):
+                d["rssi_p10"] = max(d["rssi_p10"], cons["rssi_p10"])
+            if not math.isnan(cons.get("ttr_median_s", float("nan"))):
+                d["ttr_median_s"] = min(d["ttr_median_s"], cons["ttr_median_s"])
+            if not math.isnan(cons.get("lat_median", float("nan"))):
+                if math.isnan(d.get("lat_median", float("nan"))):
+                    d["lat_median"] = cons["lat_median"]
+                else:
+                    d["lat_median"] = min(d["lat_median"], cons["lat_median"])
+
+        elif mode == "CLOCK":
+            cons = consolidate_clock(agg_list)
+            consolidated[(ant, mode)] = cons
+            if ant not in antenna_metrics: antenna_metrics[ant] = _empty_metrics()
+            d = antenna_metrics[ant]
+            marker_rssi = [v["rssi_p10"] for v in cons.get("markers", {}).values()]
+            if marker_rssi:
+                d["rssi_p10"] = max(d["rssi_p10"], _median(marker_rssi))
+            marker_lat = [v["lat_median"] for v in cons.get("markers", {}).values()
+                          if not math.isnan(v.get("lat_median", float("nan")))]
+            if marker_lat:
+                lat_med = _median(marker_lat)
+                if math.isnan(d.get("lat_median", float("nan"))):
+                    d["lat_median"] = lat_med
+                else:
+                    d["lat_median"] = min(d["lat_median"], lat_med)
+
+    return consolidated, antenna_metrics, raw_samples
+
+
+def compute_per_location_rankings(valid_runs: list, weights: dict) -> dict:
+    """Para cada location, agrega métricas e calcula scores comparando antenas.
+    Retorna {loc: {"scores": {ant: score}, "metrics": {ant: dict}, "n_runs": N,
+    "antennas": [...], "n_compete": M}} onde n_compete é # de antenas que disputaram."""
+    by_loc = defaultdict(list)
+    for run in valid_runs:
+        meta = run.get("meta", {})
+        if not meta: continue
+        by_loc[meta["location"]].append(run)
+
+    out = {}
+    for loc, runs_at_loc in sorted(by_loc.items()):
+        _, metrics, _ = _aggregate_antenna_metrics(runs_at_loc)
+        if not metrics: continue
+        scores, _ = compute_scores(metrics, weights)
+        out[loc] = {
+            "scores": scores,
+            "metrics": metrics,
+            "n_runs": len(runs_at_loc),
+            "antennas": sorted(metrics.keys()),
+            "n_compete": len(metrics),
+        }
+    return out
+
+
+def compute_overall_ranking(per_loc: dict) -> list:
+    """Média dos scores por antena nas locations onde competiu (n_compete >= 2).
+    Retorna lista [(antena, score_medio, n_locais_competidos)] ordenada desc."""
+    by_ant = defaultdict(list)
+    for loc, data in per_loc.items():
+        if data.get("n_compete", 0) < 2:
+            continue  # local com antena única não conta para o ranking geral
+        for ant, sc in data["scores"].items():
+            by_ant[ant].append(sc)
+    ranking = [
+        (ant, round(sum(scs) / len(scs), 1), len(scs))
+        for ant, scs in by_ant.items()
+    ]
+    ranking.sort(key=lambda x: x[1], reverse=True)
+    return ranking
+
+
 # ══════════════════════════════════════════════════════════════
 #  7. METADADOS DE CAMPO (campaign.json)
 # ══════════════════════════════════════════════════════════════
@@ -557,101 +686,10 @@ def run_pipeline(campaign_dir: Path, weights: dict):
 
     valid_runs = [r for r in runs if r["status"] in ("VALID", "SUSPECT", "INCOMPLETE")]
 
-    # Agrega por (antena, modo)
-    by_ant_mode = defaultdict(list)
-    for run in valid_runs:
-        meta = run.get("meta", {})
-        if not meta: continue
-        key = (meta["antenna"], meta["mode"])
-        by_ant_mode[key].append(run)
+    # Agregação global: consolida por antena (todos os locais juntos)
+    consolidated, antenna_metrics, raw_samples = _aggregate_antenna_metrics(valid_runs)
 
-    # Consolida por antena
-    consolidated = {}   # {(ant, mode): dados consolidados}
-    antenna_metrics = {}  # {ant: {rssi_p10, tput_median, plr_median, ttr_median_s}}
-    raw_samples = defaultdict(list)  # {ant: [todas as linhas S de todos os runs]}
-
-    for (ant, mode), grp in sorted(by_ant_mode.items()):
-        agg_list = []
-        for run in grp:
-            if mode == "BURN":
-                agg_list.append(aggregate_burn(run["rows"]))
-                for r in run["rows"]:
-                    if r.get("type") == "S":
-                        raw_samples[ant].append(r)
-            elif mode == "WALK":
-                agg_list.append(aggregate_walk(run["rows"]))
-            elif mode == "CLOCK":
-                agg_list.append(aggregate_clock(run["rows"]))
-
-        if mode == "BURN":
-            cons = consolidate_burn(agg_list)
-            consolidated[(ant, mode)] = cons
-            # Extrai métricas para score
-            rssi_vals = [cons[b]["rssi_p10"]    for b in cons]
-            tput_vals = [cons[b]["tput_median"] for b in cons]
-            plr_vals  = [cons[b]["plr_median"]  for b in cons]
-            if ant not in antenna_metrics:
-                antenna_metrics[ant] = {
-                    "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
-                    "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
-                    "tput_median": 0.0, "tput_p10": 0.0,
-                    "plr_median": 100.0, "ttr_median_s": 999.0, "lat_median": float("nan"),
-                }
-            d = antenna_metrics[ant]
-            if rssi_vals: d["rssi_p10"]    = max(d["rssi_p10"],    _median(rssi_vals))
-            if tput_vals: d["tput_median"] = max(d["tput_median"], _median(tput_vals))
-            if plr_vals:  d["plr_median"]  = min(d["plr_median"],  _median(plr_vals))
-            for field in ("rssi_p90","rssi_median","rssi_min","rssi_max","tput_p10"):
-                vals = [cons[b][field] for b in cons if field in cons[b]]
-                if vals: d[field] = _median(vals)
-            std_vals = [cons[b]["rssi_std"] for b in cons if "rssi_std" in cons[b]]
-            if std_vals: d["rssi_std"] = _mean(std_vals)
-
-        elif mode == "WALK":
-            cons = consolidate_walk(agg_list)
-            consolidated[(ant, mode)] = cons
-            if ant not in antenna_metrics:
-                antenna_metrics[ant] = {
-                    "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
-                    "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
-                    "tput_median": 0.0, "tput_p10": 0.0,
-                    "plr_median": 100.0, "ttr_median_s": 999.0, "lat_median": float("nan"),
-                }
-            d = antenna_metrics[ant]
-            if not math.isnan(cons.get("rssi_p10", float("nan"))):
-                d["rssi_p10"] = max(d["rssi_p10"], cons["rssi_p10"])
-            if not math.isnan(cons.get("ttr_median_s", float("nan"))):
-                d["ttr_median_s"] = min(d["ttr_median_s"], cons["ttr_median_s"])
-            if not math.isnan(cons.get("lat_median", float("nan"))):
-                if math.isnan(d.get("lat_median", float("nan"))):
-                    d["lat_median"] = cons["lat_median"]
-                else:
-                    d["lat_median"] = min(d["lat_median"], cons["lat_median"])
-
-        elif mode == "CLOCK":
-            cons = consolidate_clock(agg_list)
-            consolidated[(ant, mode)] = cons
-            if ant not in antenna_metrics:
-                antenna_metrics[ant] = {
-                    "rssi_p10": -127.0, "rssi_p90": -127.0, "rssi_median": -127.0,
-                    "rssi_min": -127.0, "rssi_max": -127.0, "rssi_std": 0.0,
-                    "tput_median": 0.0, "tput_p10": 0.0,
-                    "plr_median": 100.0, "ttr_median_s": 999.0, "lat_median": float("nan"),
-                }
-            d = antenna_metrics[ant]
-            marker_rssi = [v["rssi_p10"] for v in cons.get("markers", {}).values()]
-            if marker_rssi:
-                d["rssi_p10"] = max(d["rssi_p10"], _median(marker_rssi))
-            marker_lat = [v["lat_median"] for v in cons.get("markers", {}).values()
-                          if not math.isnan(v.get("lat_median", float("nan")))]
-            if marker_lat:
-                lat_med = _median(marker_lat)
-                if math.isnan(d.get("lat_median", float("nan"))):
-                    d["lat_median"] = lat_med
-                else:
-                    d["lat_median"] = min(d["lat_median"], lat_med)
-
-    # Score RF
+    # Score RF global
     scores, eff_weights = compute_scores(antenna_metrics, weights)
     print(f"\nScores RF (pesos: PLR={eff_weights['plr']:.0%} TTR={eff_weights['ttr']:.0%} RSSI={eff_weights['rssi']:.0%} Tput={eff_weights['tput']:.0%}):")
     if eff_weights.get("ttr", 0) == 0:
@@ -660,6 +698,25 @@ def run_pipeline(campaign_dir: Path, weights: dict):
         bar = "█" * int(sc / 5)
         print(f"  {ant:6s}: {sc:5.1f}  {bar}")
 
+    # ── Ranking por local (campo: 1 máquina = 1 location) ─────
+    per_loc_rankings = compute_per_location_rankings(valid_runs, weights)
+    overall_ranking  = compute_overall_ranking(per_loc_rankings)
+
+    if len(per_loc_rankings) > 1:
+        print(f"\nRanking por local ({len(per_loc_rankings)} locais):")
+        for loc, data in per_loc_rankings.items():
+            n = data["n_compete"]
+            if n < 2:
+                print(f"  [{loc}] antena única ({data['antennas'][0]}) — não conta no ranking geral")
+                continue
+            top_ant, top_sc = max(data["scores"].items(), key=lambda x: x[1])
+            print(f"  [{loc}] vencedora: {top_ant} ({top_sc:.1f})  — {n} antenas testadas")
+
+        if overall_ranking:
+            print(f"\nRanking geral (média entre locais com 2+ antenas):")
+            for ant, mean_sc, n_locs in overall_ranking:
+                bar = "█" * int(mean_sc / 5)
+                print(f"  {ant:6s}: {mean_sc:5.1f}  ({n_locs} locais)  {bar}")
 
     # Tabelas de cobertura e localização
     cov_stats, loc_stats = build_coverage_tables(valid_runs)
@@ -676,11 +733,24 @@ def run_pipeline(campaign_dir: Path, weights: dict):
                         d["plr_median"], d["ttr_median_s"]])
     print(f"\nSummary CSV: {summary_path}")
 
+    # Exporta ranking_locais.csv (vencedora por local + score geral)
+    if per_loc_rankings:
+        rank_path = report_dir / "ranking_locais.csv"
+        with open(rank_path, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["local","antena","score","competiu_com"])
+            for loc, data in per_loc_rankings.items():
+                ants_str = "+".join(data["antennas"])
+                for ant, sc in sorted(data["scores"].items(), key=lambda x: x[1], reverse=True):
+                    w.writerow([loc, ant, sc, ants_str])
+        print(f"Ranking por local: {rank_path}")
+
     # Relatório HTML
     out_html = report_dir / "report.html"
     render_report(out_html, campaign_dir.name, runs, scores, eff_weights,
                   antenna_metrics, consolidated, raw_samples, cov_stats, loc_stats,
-                  campaign_meta=campaign_meta)
+                  campaign_meta=campaign_meta,
+                  per_loc_rankings=per_loc_rankings, overall_ranking=overall_ranking)
     print(f"Relatório:   {out_html}")
     print(f"\nAbra o arquivo no navegador para ver os gráficos.")
 
@@ -854,11 +924,109 @@ def _nan_to_none(v):
     except Exception:
         return v
 
+def _build_per_location_section(per_loc_rankings: dict, overall_ranking: list,
+                                ant_colors: dict) -> str:
+    """Tabela por local + ranking geral (média entre locais com >=2 antenas)."""
+    if not per_loc_rankings:
+        return ""
+
+    rows = []
+    for loc, data in per_loc_rankings.items():
+        scs = data["scores"]
+        n_compete = data["n_compete"]
+        if n_compete < 2:
+            ant = data["antennas"][0]
+            rows.append(
+                f'<tr><td><strong>{loc}</strong></td>'
+                f'<td colspan="4" style="color:#8b949e;font-style:italic">'
+                f'Apenas {ant} testada — sem comparação</td></tr>'
+            )
+            continue
+        ranked = sorted(scs.items(), key=lambda x: x[1], reverse=True)
+        top_ant, top_sc = ranked[0]
+        others = "  ·  ".join(
+            f'<span style="color:{ant_colors.get(a, "#8b949e")}">{a}</span>&nbsp;{s:.1f}'
+            for a, s in ranked[1:]
+        )
+        rows.append(
+            f'<tr>'
+            f'<td><strong>{loc}</strong></td>'
+            f'<td style="color:{ant_colors.get(top_ant, "#3fb950")};font-weight:700">{top_ant}</td>'
+            f'<td style="font-weight:700">{top_sc:.1f}</td>'
+            f'<td>{n_compete}</td>'
+            f'<td style="font-size:10px">{others or "—"}</td>'
+            f'</tr>'
+        )
+
+    per_loc_html = (
+        '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        '<thead><tr style="background:#161b22;text-align:left">'
+        '<th style="padding:6px 10px">Local / Máquina</th>'
+        '<th style="padding:6px 10px">Vencedora</th>'
+        '<th style="padding:6px 10px">Score</th>'
+        '<th style="padding:6px 10px"># antenas</th>'
+        '<th style="padding:6px 10px">Demais</th>'
+        '</tr></thead><tbody>'
+        + "\n".join(rows)
+        + '</tbody></table>'
+    )
+
+    if not overall_ranking:
+        overall_html = (
+            '<p style="color:#8b949e;font-size:11px">Ranking geral indisponível: '
+            'nenhum local teve 2+ antenas em comparação.</p>'
+        )
+    else:
+        max_score = max(s for _, s, _ in overall_ranking) or 1.0
+        overall_rows = []
+        for i, (ant, mean_sc, n_locs) in enumerate(overall_ranking, 1):
+            bar_w = int(mean_sc / max_score * 100)
+            color = ant_colors.get(ant, "#58a6ff")
+            overall_rows.append(
+                f'<tr>'
+                f'<td style="padding:5px 10px">{i}º</td>'
+                f'<td style="padding:5px 10px;color:{color};font-weight:700">{ant}</td>'
+                f'<td style="padding:5px 10px;font-weight:700">{mean_sc:.1f}</td>'
+                f'<td style="padding:5px 10px">{n_locs}</td>'
+                f'<td style="padding:5px 10px;width:40%">'
+                f'<div style="background:#21262d;border-radius:3px;height:10px">'
+                f'<div style="width:{bar_w}%;background:{color};height:100%;border-radius:3px"></div>'
+                f'</div></td>'
+                f'</tr>'
+            )
+        overall_html = (
+            '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">'
+            '<thead><tr style="background:#161b22;text-align:left">'
+            '<th style="padding:6px 10px">#</th>'
+            '<th style="padding:6px 10px">Antena</th>'
+            '<th style="padding:6px 10px">Score médio</th>'
+            '<th style="padding:6px 10px"># locais</th>'
+            '<th style="padding:6px 10px">Barra</th>'
+            '</tr></thead><tbody>'
+            + "\n".join(overall_rows)
+            + '</tbody></table>'
+        )
+
+    return (
+        '<h2>Ranking por Local / Máquina</h2>'
+        '<p class="chart-desc">Cada local é uma máquina ou ponto de instalação diferente. '
+        'A antena vencedora é a de maior score <strong>naquele local</strong> '
+        '(comparação relativa entre as antenas testadas ali).</p>'
+        f'<div class="card">{per_loc_html}</div>'
+        '<h2>Ranking Geral (média entre locais)</h2>'
+        '<p class="chart-desc">Score médio por antena, considerando apenas locais onde '
+        'ela competiu com pelo menos outra antena. Cada local pesa igual — '
+        'uma antena que só foi testada em um lugar não inflaciona a média.</p>'
+        f'<div class="card">{overall_html}</div>'
+    )
+
+
 def render_report(out_path: Path, campaign_name: str, runs: list,
                   scores: dict, eff_weights: dict, antenna_metrics: dict,
                   consolidated: dict, raw_samples: dict,
                   cov_stats: dict = None, loc_stats: dict = None,
-                  campaign_meta: dict = None):
+                  campaign_meta: dict = None,
+                  per_loc_rankings: dict = None, overall_ranking: list = None):
 
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
     sorted_ants = sorted(scores.keys(), key=lambda a: scores[a], reverse=True)
@@ -1215,6 +1383,11 @@ def render_report(out_path: Path, campaign_name: str, runs: list,
   </div>
 </div>"""
 
+    # ── Ranking por local + ranking geral ───────────────────────
+    per_loc_section_html = _build_per_location_section(
+        per_loc_rankings or {}, overall_ranking or [], ant_colors
+    )
+
     # RSSI e throughput por amostra (time series — só BURN)
     series_data = {}
     for ant in sorted_ants:
@@ -1505,6 +1678,8 @@ footer{{margin-top:32px;font-size:11px;color:#484f58;text-align:center;
 {f'<h2>Cobertura por Distância</h2><div class="card">{coverage_section_html}</div>' if coverage_section_html else ''}
 
 {f'<h2>Posição de Instalação na Máquina</h2><div class="card">{location_section_html}</div>' if location_section_html else ''}
+
+{per_loc_section_html}
 
 <h2>Ranking — Score RF Composto</h2>
 <p class="chart-desc">Score 0–100 relativo às antenas desta campanha — 100 = melhor, 0 = pior.
