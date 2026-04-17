@@ -49,7 +49,15 @@ rf_field_validator/
 
 ### 1. Configurar antes de gravar
 
-Edite `config.h`:
+O `config.h` fica fora do git (credenciais Wi-Fi e IPs internos).
+No primeiro clone, copie o template e edite:
+
+```bash
+cp testes-antena/rf_field_validator/config.example.h \
+   testes-antena/rf_field_validator/config.h
+```
+
+Depois ajuste em `config.h`:
 ```cpp
 #define WIFI_SSID  "MinhaRede"
 #define WIFI_PASS  "SenhaAqui"
@@ -170,3 +178,18 @@ Nome de arquivo: `[MODO]_[ANTENA]_[LOCAL]_[COND]_R[NN].csv`
 - Temperatura interna do ESP32 (`temprature_sens_read`) é aproximada (±5 °C).
 - Throughput TCP depende do `tcp_sink.py` rodando no notebook. Sem ele → `throughput_bps=0`.
 - Exportação de logs via Serial é lenta para arquivos grandes (>100 KB). Para campo: usar script de dump via UART ou adaptar para HTTP GET.
+
+---
+
+## Status do projeto
+
+Firmware N3.1 em estado **utilizável para pré-campo**. Auditoria recente:
+
+- Corrigido truncamento de `antenna/location/condition` em `CsvRow` (buffers agora casam com `RunContext`).
+- Relatórios das campanhas de bancada regerados com os pesos atuais (PLR 35% / TTR 10% / RSSI 15% / Tput 40%).
+- `config.h` movido para fora do git; template em `config.example.h`.
+
+### Dívida técnica (não bloqueia campo)
+
+- `weblog.cpp` escapa `\r` como `\n` na serialização JSON do buffer circular (`_handle_weblog`). Impacto cosmético: linhas quebradas por `\r` aparecem como quebra normal no terminal web. Sem urgência.
+- `csv_flush_all()` pode sair cedo se o mutex do FS estiver contendido em duas iterações consecutivas, deixando amostras na fila mesmo antes do timeout. Na prática a flag `FLUSH_INCOMPLETE` é emitida corretamente; o impacto é só encerrar o flush 1–2 linhas antes do ideal.

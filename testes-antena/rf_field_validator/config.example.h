@@ -1,9 +1,11 @@
 #pragma once
 // ============================================================
-//  config.h — Parâmetros ajustáveis da bancada
+//  config.example.h — Template versionado dos parâmetros
 //  Spec N3.0 — Terasite 2026
-//  Edite antes de gravar. Não altere outros arquivos para
-//  mudar rede ou pinos.
+//
+//  Uso: copie para config.h e ajuste credenciais antes de gravar.
+//       config.h fica fora do git (.gitignore) para não vazar
+//       SSID/senha de hotspot ou IPs internos.
 // ============================================================
 
 // ── Wi-Fi ────────────────────────────────────────────────────

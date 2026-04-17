@@ -57,3 +57,6 @@ AGENTS.md
 
 # Notas internas de campo (perguntas/respostas com chefes, rascunhos)
 notes/
+
+# Config local com credenciais reais — usar config.example.h como template
+testes-antena/rf_field_validator/config.h
