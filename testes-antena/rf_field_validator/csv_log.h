@@ -13,9 +13,9 @@ struct CsvRow {
     char     type[2];         // S / E / M / B
     char     profile[2];      // A / B / -
     char     phase[4];        // F0/F1/F2/F3A/F3B/-
-    char     antenna[4];
-    char     location[6];
-    char     condition[4];
+    char     antenna[6];      // ex: "A5.2" — bate com RunContext.antenna
+    char     location[8];     // ex: "GUARITA" — bate com RunContext.location
+    char     condition[5];    // ex: "RUN" — bate com RunContext.condition
     char     run_id[32];
 
     int8_t   rssi_dbm;
